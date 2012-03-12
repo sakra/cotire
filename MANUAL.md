@@ -76,7 +76,7 @@ Cotire looks at the properties of the target provided by CMake (e.g., target typ
 compile flags, preprocessor defines, include directories, ...) and modifies the target's build
 process in the following way:
 
-1. cotire adds a custom build rule to produce a unity source file from target's sources.
+1. cotire adds a custom build rule to produce a unity source file from the target's sources.
 2. cotire adds a custom build rule to produce a prefix header file by tracking the header files
    included by the target's sources.
 3. cotire adds a custom build rule to produce a precompiled header from the prefix header.
@@ -260,7 +260,7 @@ If a unity build target should not be added by cotire, the target property
     set_target_properties(example PROPERTIES COTIRE_ADD_UNITY_BUILD FALSE)
     cotire(example)
 
-Both properties default to TRUE. If both are set to FALSE, cotire will only set up custom build
+Both properties default to `TRUE`. If both are set to `FALSE`, cotire will only set up custom build
 rules for the generation of the unity source and the prefix header.
 
 The properties `COTIRE_ENABLE_PRECOMPILED_HEADER` and `COTIRE_ADD_UNITY_BUILD` can also be set on

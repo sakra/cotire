@@ -47,8 +47,8 @@ top-level `CMakeList.txt`:
 
     include(cotire)
 
-To speed the build process of a CMake library or executable target, just apply the `cotire` function
-to the target:
+To speed the build process of a CMake library or executable target, just apply the `cotire`
+function to the target:
 
     add_executable(MyExecutable ${MyExecutableSources})
     target_link_libraries(MyExecutable ${MyExecutableLibraries})
@@ -76,8 +76,8 @@ the original target, but does so much faster by entering:
 
     $ make MyExecutable_unity
 
-See the advanced usage section of the cotire manual for information on how to configure the cotire
-process (e.g., how to apply cotire to a certain build configuration only).
+See the advanced usage section of the [cotire manual](MANUAL.md) for information on how to
+configure the cotire process (e.g., how to apply cotire to a certain build configuration only).
 
 speedup
 -------
