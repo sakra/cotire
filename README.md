@@ -76,7 +76,7 @@ the original target, but does so much faster by entering:
 
     $ make MyExecutable_unity
 
-See the advanced usage section of the [cotire manual](MANUAL.md) for information on how to
+See the advanced usage section of the [cotire manual](cotire/MANUAL.md) for information on how to
 configure the cotire process (e.g., how to apply cotire to a certain build configuration only).
 
 speedup
