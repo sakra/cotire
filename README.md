@@ -76,7 +76,7 @@ the original target, but does so much faster by entering:
 
     $ make MyExecutable_unity
 
-See the advanced usage section of the [cotire manual](cotire/MANUAL.md) for information on how to
+See the advanced usage section of the [cotire manual][manual] for information on how to
 configure the cotire process (e.g., how to apply cotire to a certain build configuration only).
 
 speedup
@@ -106,6 +106,7 @@ limitations
 [clang]:http://clang.llvm.org/
 [cmk]:http://www.cmake.org/cmake/resources/software.html
 [gcc]:http://gcc.gnu.org/
+[manual]:https://github.com/sakra/cotire/blob/master/MANUAL.md
 [mingw]:http://www.mingw.org/
 [pch]:http://en.wikipedia.org/wiki/Precompiled_header
 [pfh]:http://en.wikipedia.org/wiki/Prefix_header
