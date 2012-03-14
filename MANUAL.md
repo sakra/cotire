@@ -9,8 +9,8 @@ motivation
 ----------
 
 Cotire was born out of a dissatisfaction with the existing CMake solutions for adding
-[precompiled header][1260] support and [unity build][gmixer] support to CMake based build systems.
-The design of cotire tries to adhere to the following principles:
+[precompiled header][1260] support and [unity build][kde4macros] support to CMake based build
+systems. The design of cotire tries to adhere to the following principles:
 
 #### as automatic as possible
 
@@ -391,7 +391,7 @@ Neither GCC nor Clang support the use of precompiled headers when performing a M
 multi-architecture build (e.g., using option `-DCMAKE_OSX_ARCHITECTURES=i386;x86_64`).
 
 [1260]:http://www.cmake.org/Bug/view.php?id=1260
-[gmixer]:http://www.gmixer.com/archives/46
+[kde4macros]:http://kbfxmenu.googlecode.com/svn/trunk/kbfx3/cmakemodules/KDE4Macros.cmake
 [gcc_pch]:http://gcc.gnu.org/onlinedocs/gcc/Precompiled-Headers.html
 [clang_pch]:http://clang.llvm.org/docs/UsersManual.html#precompiledheaders
 [msvc_pch]:http://msdn.microsoft.com/en-us/library/szfdksca(v=vs.90).aspx
