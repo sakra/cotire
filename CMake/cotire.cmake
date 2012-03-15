@@ -36,7 +36,7 @@ set(__COTIRE_INCLUDED TRUE)
 cmake_minimum_required(VERSION 2.8.5)
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.0.0")
+set (COTIRE_CMAKE_MODULE_VERSION "1.0.1")
 
 include(CMakeParseArguments)
 
@@ -1941,6 +1941,8 @@ function (cotire_setup_unity_build_target _languages _configurations _target)
 						${_language} "" "${_prefixFile}" "${_pchFile}" ${_unityFiles})
 					cotire_setup_prefix_file_inclusion(
 						${_language} ${_target} FALSE "${_prefixFile}" "${_pchFile}" ${_unityFiles})
+					# add the prefix header to unity target sources
+					list (APPEND _unityTargetSources "${_prefixFile}")
 				endif()
 			endif()
 		endif()
