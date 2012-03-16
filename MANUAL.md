@@ -347,7 +347,7 @@ clashes.
 
 As an example, if these properties are set on a source file of the example project:
 
-    set_source_files_properties (log.cpp PROPERTIES
+    set_source_files_properties (example.cpp PROPERTIES
         COTIRE_UNITY_SOURCE_PRE_UNDEFS "max;min"
         COTIRE_UNITY_SOURCE_POST_UNDEFS "DEBUG_TYPE")
 
