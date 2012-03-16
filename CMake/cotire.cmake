@@ -36,7 +36,7 @@ set(__COTIRE_INCLUDED TRUE)
 cmake_minimum_required(VERSION 2.8.5)
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.0.1")
+set (COTIRE_CMAKE_MODULE_VERSION "1.0.2")
 
 include(CMakeParseArguments)
 
@@ -2183,20 +2183,7 @@ if (CMAKE_SCRIPT_MODE_FILE)
 		include("${COTIRE_ARGV2}")
 	endif()
 
-	if (APPLE AND "$ENV{DEVELOPER_BIN_DIR}" MATCHES ".+")
-		# for Xcode, override compiler executables used
-		if ("$ENV{GCC_VERSION}" MATCHES "clang")
-			set (CMAKE_C_COMPILER_ID "Clang")
-			set (CMAKE_CXX_COMPILER_ID "Clang")
-			set (CMAKE_C_COMPILER "$ENV{DEVELOPER_BIN_DIR}/clang")
-			set (CMAKE_CXX_COMPILER "$ENV{DEVELOPER_BIN_DIR}/clang++")
-		else()
-			set (CMAKE_C_COMPILER_ID "GNU")
-			set (CMAKE_CXX_COMPILER_ID "GNU")
-			set (CMAKE_C_COMPILER "$ENV{DEVELOPER_BIN_DIR}/cc")
-			set (CMAKE_CXX_COMPILER "$ENV{DEVELOPER_BIN_DIR}/g++")
-		endif()
-	elseif (WIN32)
+	if (WIN32)
 		# for MSVC, compiler IDs may not always be set correctly
 		if (MSVC)
 			set (CMAKE_C_COMPILER_ID "MSVC")

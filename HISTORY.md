@@ -1,3 +1,8 @@
+## 1.0.2 (2012-03-16)
+
+* Fix Xcode 4.3 compatibility.
+* Cotire manual corrections.
+
 ## 1.0.1 (2012-03-15)
 
 * Cotire manual corrections.
