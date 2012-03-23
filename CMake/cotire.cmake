@@ -36,7 +36,7 @@ set(__COTIRE_INCLUDED TRUE)
 cmake_minimum_required(VERSION 2.8.5)
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.0.2")
+set (COTIRE_CMAKE_MODULE_VERSION "1.0.3")
 
 include(CMakeParseArguments)
 
@@ -55,10 +55,15 @@ function (cotire_determine_compiler_version _language _versionPrefix)
 					${_versionPrefix}_VERSION "${_versionLine}")
 			endif()
 		else()
-			# assume GCC like command line interface
-			execute_process (COMMAND ${CMAKE_${_language}_COMPILER} "-dumpversion"
-				OUTPUT_VARIABLE ${_versionPrefix}_VERSION
-				OUTPUT_STRIP_TRAILING_WHITESPACE TIMEOUT 10)
+			# use CMake's predefined compiler version variable (available since CMake 2.8.8)
+			if (DEFINED CMAKE_${_language}_COMPILER_VERSION)
+				set (${_versionPrefix}_VERSION "${CMAKE_${_language}_COMPILER_VERSION}")
+			else()
+				# assume GCC like command line interface
+				execute_process (COMMAND ${CMAKE_${_language}_COMPILER} "-dumpversion"
+					OUTPUT_VARIABLE ${_versionPrefix}_VERSION
+					OUTPUT_STRIP_TRAILING_WHITESPACE TIMEOUT 10)
+			endif()
 		endif()
 		if (${_versionPrefix}_VERSION)
 			set (${_versionPrefix}_VERSION "${${_versionPrefix}_VERSION}" CACHE INTERNAL "${_language} compiler version")
@@ -1732,6 +1737,7 @@ function (cotire_choose_target_languages _target _targetLanguagesVar)
 	set (_allExcludedSourceFiles "")
 	set (_allCotiredSourceFiles "")
 	set (_targetLanguages "")
+	get_target_property(_targetType ${_target} TYPE)
 	get_target_property(_targetSourceFiles ${_target} SOURCES)
 	get_target_property(_targetUsePCH ${_target} COTIRE_ENABLE_PRECOMPILED_HEADER)
 	get_target_property(_targetAddSCU ${_target} COTIRE_ADD_UNITY_BUILD)
@@ -1785,6 +1791,10 @@ function (cotire_choose_target_languages _target _targetLanguagesVar)
 		elseif (XCODE AND _allExcludedSourceFiles)
 			# for Xcode, we cannot apply the precompiled header to individual sources, only to the whole target
 			set (_disableMsg "Exclusion of source files not supported for generator Xcode.")
+			set (_targetUsePCH FALSE)
+		elseif (XCODE AND "${_targetType}" STREQUAL "OBJECT_LIBRARY")
+			# for Xcode, we cannot apply the required PRE_BUILD action to generate the prefix header to an OBJECT_LIBRARY target
+			set (_disableMsg "Required PRE_BUILD action not supported for OBJECT_LIBRARY targets for generator Xcode.")
 			set (_targetUsePCH FALSE)
 		endif()
 	endif()
@@ -1909,10 +1919,11 @@ function (cotire_setup_unity_build_target _languages _configurations _target)
 		else()
 			set (_unityTargetSubType "")
 		endif()
-	elseif (_targetType MATCHES "(STATIC|SHARED|MODULE)_LIBRARY")
+	elseif (_targetType MATCHES "(STATIC|SHARED|MODULE|OBJECT)_LIBRARY")
 		set (_unityTargetSubType "${CMAKE_MATCH_1}")
 	else()
-		message (FATAL_ERROR "Unknown target type ${_targetType}.")
+		message (WARNING "Unknown target type ${_targetType}.")
+		return()
 	endif()
 	# determine unity target sources
 	get_target_property(_targetSourceFiles ${_target} SOURCES)
