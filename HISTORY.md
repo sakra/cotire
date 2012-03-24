@@ -1,3 +1,7 @@
+## 1.0.4 (2012-03-24)
+
+* honor target property INCLUDE_DIRECTORIES introduced in CMake 2.8.8.
+
 ## 1.0.3 (2012-03-23)
 
 * handle OBJECT_LIBRARY targets introduced in CMake 2.8.8.

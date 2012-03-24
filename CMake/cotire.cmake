@@ -36,7 +36,7 @@ set(__COTIRE_INCLUDED TRUE)
 cmake_minimum_required(VERSION 2.8.5)
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.0.3")
+set (COTIRE_CMAKE_MODULE_VERSION "1.0.4")
 
 include(CMakeParseArguments)
 
@@ -351,6 +351,13 @@ function (cotire_get_target_include_directories _config _language _directory _ta
 	endif()
 	# target include directories
 	get_directory_property(_dirs DIRECTORY "${_directory}" INCLUDE_DIRECTORIES)
+	if (_target)
+		get_target_property(_targetDirs ${_target} INCLUDE_DIRECTORIES)
+		if (_targetDirs)
+			list (APPEND _dirs ${_targetDirs})
+			list (REMOVE_DUPLICATES _dirs)
+		endif()
+	endif()
 	list (LENGTH _includeDirs _projectInsertIndex)
 	foreach (_dir ${_dirs})
 		if (CMAKE_INCLUDE_DIRECTORIES_PROJECT_BEFORE)
@@ -1984,6 +1991,7 @@ function (cotire_setup_unity_build_target _languages _configurations _target)
 	cotrie_copy_set_properites("${_configurations}" TARGET ${_target} ${_unityTargetName}
 		COMPILE_DEFINITIONS COMPILE_DEFINITIONS_<CONFIG>
 		COMPILE_FLAGS Fortran_FORMAT
+		INCLUDE_DIRECTORIES
 		INTERPROCEDURAL_OPTIMIZATION INTERPROCEDURAL_OPTIMIZATION_<CONFIG>)
 	# copy link stuff
 	cotrie_copy_set_properites("${_configurations}" TARGET ${_target} ${_unityTargetName}
@@ -2010,7 +2018,8 @@ function (cotire_setup_unity_build_target _languages _configurations _target)
 		cotrie_copy_set_properites("${_configurations}" TARGET ${_target} ${_unityTargetName}
 			GNUtoMS
 			VS_DOTNET_REFERENCES VS_GLOBAL_KEYWORD VS_GLOBAL_PROJECT_TYPES VS_KEYWORD
-			VS_SCC_AUXPATH VS_SCC_LOCALPATH VS_SCC_PROJECTNAME VS_SCC_PROVIDER)
+			VS_SCC_AUXPATH VS_SCC_LOCALPATH VS_SCC_PROJECTNAME VS_SCC_PROVIDER
+			VS_WINRT_EXTENSIONS VS_WINRT_REFERENCES)
 	endif()
 	# use output name from original target
 	get_target_property(_targetOutputName ${_unityTargetName} OUTPUT_NAME)
