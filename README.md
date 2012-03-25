@@ -79,6 +79,9 @@ the original target, but does so much faster by entering:
 See the advanced usage section of the [cotire manual][manual] for information on how to
 configure the cotire process (e.g., how to apply cotire to a certain build configuration only).
 
+The directory `Patches` contains patch files to enable cotire for some popular open sources
+packages that use CMake as a build system.
+
 speedup
 -------
 
