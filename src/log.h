@@ -2,7 +2,7 @@
 
 #include <string>
 
-namespace log {
+namespace logging {
 
 void error(const std::string& msg);
 void info(const std::string& msg);

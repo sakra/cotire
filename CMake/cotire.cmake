@@ -36,7 +36,7 @@ set(__COTIRE_INCLUDED TRUE)
 cmake_minimum_required(VERSION 2.8.5)
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.0.4")
+set (COTIRE_CMAKE_MODULE_VERSION "1.0.5")
 
 include(CMakeParseArguments)
 
@@ -657,11 +657,10 @@ macro (cotire_check_ignore_header_file_path _headerFile _headerIsIgnoredVar)
 		set (${_headerIsIgnoredVar} TRUE)
 	elseif (IS_DIRECTORY "${_headerFile}")
 		set (${_headerIsIgnoredVar} TRUE)
-	elseif ("${_headerFile}" MATCHES "\\.\\." AND "${_headerFile}" MATCHES "\\.h$")
-		# ignore C headers with embedded parent directory references
-		# these often stem from using GCC #include_next tricks
-		# which break the precompiled header compilation with the error message
-		# "error: no include path in which to search for header.h"
+	elseif ("${_headerFile}" MATCHES "\\.\\.|[_-]fixed" AND "${_headerFile}" MATCHES "\\.h$")
+		# heuristic: ignore C headers with embedded parent directory references or "-fixed" or "_fixed" in path
+		# these often stem from using GCC #include_next tricks, which may break the precompiled header compilation
+		# with the error message "error: no include path in which to search for header.h"
 		set (${_headerIsIgnoredVar} TRUE)
 	else()
 		set (${_headerIsIgnoredVar} FALSE)

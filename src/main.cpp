@@ -8,5 +8,5 @@
 int main(int argc, char** argv)
 {
 	std::string msg = example::get_message();
-	log::info(msg);
+	logging::info(msg);
 }

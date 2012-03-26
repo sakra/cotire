@@ -9,7 +9,7 @@ Then apply the corresponding patch:
     $ cd /path/to/llvm-3.0.src
     $ patch -p1 < /path/to/llvm-3.0.src.patch
 
-Then proceed with an out-of-source Cmake build:
+Then proceed with an out-of-source CMake build:
 
     $ mkdir build; cd build
     $ cmake ..

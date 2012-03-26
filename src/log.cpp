@@ -4,7 +4,7 @@
 
 #include <iostream>
 
-namespace log {
+namespace logging {
 
 void error(const std::string& msg) {
 	std::cerr << msg << std::endl;
