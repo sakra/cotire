@@ -1,3 +1,7 @@
+## 1.0.6 (2012-04-01)
+
+* correctly handle builds where both `CMAKE_BUILD_TYPE` and `CMAKE_CONFIGURATION_TYPES` are set.
+
 ## 1.0.5 (2012-03-26)
 
 * fix Visual Studio C++ 2010 compilation of example project.

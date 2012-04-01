@@ -36,7 +36,7 @@ set(__COTIRE_INCLUDED TRUE)
 cmake_minimum_required(VERSION 2.8.5)
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.0.5")
+set (COTIRE_CMAKE_MODULE_VERSION "1.0.6")
 
 include(CMakeParseArguments)
 
@@ -409,7 +409,7 @@ function (cotire_get_target_compile_definitions _config _language _directory _ta
 	string (TOUPPER "${_config}" _config)
 	set (_configDefinitions "")
 	# CMAKE_INTDIR for multi-configuration build systems
-	if (CMAKE_CONFIGURATION_TYPES)
+	if (NOT "${CMAKE_CFG_INTDIR}" STREQUAL ".")
 		list (APPEND _configDefinitions "CMAKE_INTDIR=\"${_config}\"")
 	endif()
 	# target export define symbol
@@ -1398,7 +1398,6 @@ function (cotire_generate_target_script _language _configurations _target _targe
 	cotire_get_unity_source_dependencies(${_language} ${_target} COTIRE_TARGET_UNITY_DEPENDS)
 	# set up variables to be configured
 	set (COTIRE_TARGET_LANGUAGE "${_language}")
-	set (COTIRE_TARGET_CONFIGURATIONS "${_configurations}")
 	cotire_determine_compiler_version("${COTIRE_TARGET_LANGUAGE}" COTIRE_${_language}_COMPILER)
 	get_target_property(COTIRE_TARGET_IGNORE_PATH ${_target} COTIRE_PREFIX_HEADER_IGNORE_PATH)
 	get_target_property(COTIRE_TARGET_INCLUDE_PATH ${_target} COTIRE_PREFIX_HEADER_INCLUDE_PATH)
@@ -1436,7 +1435,8 @@ function (cotire_generate_target_script _language _configurations _target _targe
 	list (REMOVE_ITEM _matchVars COTIRE_VERBOSE)
 	set (_contents "")
 	foreach (_var IN LISTS _matchVars ITEMS
-		MSVC CMAKE_GENERATOR CMAKE_${_language}_COMPILER_ID CMAKE_${_language}_COMPILER CMAKE_${_language}_SOURCE_FILE_EXTENSIONS)
+		MSVC CMAKE_GENERATOR CMAKE_BUILD_TYPE CMAKE_CONFIGURATION_TYPES
+		CMAKE_${_language}_COMPILER_ID CMAKE_${_language}_COMPILER CMAKE_${_language}_SOURCE_FILE_EXTENSIONS)
 		if (DEFINED ${_var})
 			string (REPLACE "\"" "\\\"" _value "${${_var}}")
 			set (_contents "${_contents}set (${_var} \"${_value}\")\n")
@@ -2214,8 +2214,12 @@ if (CMAKE_SCRIPT_MODE_FILE)
 		set (_includeDirs ${COTIRE_TARGET_INCLUDE_DIRECTORIES_${COTIRE_BUILD_TYPE}})
 		set (_compileDefinitions ${COTIRE_TARGET_COMPILE_DEFINITIONS_${COTIRE_BUILD_TYPE}})
 		set (_compileFlags ${COTIRE_TARGET_COMPILE_FLAGS_${COTIRE_BUILD_TYPE}})
+		if (NOT COTIRE_BUILD_TYPE)
+			# init COTIRE_BUILD_TYPE to first configuration type if not set explicitly
+			list (GET CMAKE_CONFIGURATION_TYPES 0 COTIRE_BUILD_TYPE)
+		endif()
 		# check if target has been cotired for actual build type COTIRE_BUILD_TYPE
-		list (FIND COTIRE_TARGET_CONFIGURATIONS "${COTIRE_BUILD_TYPE}" _index)
+		list (FIND COTIRE_TARGET_CONFIGURATION_TYPES "${COTIRE_BUILD_TYPE}" _index)
 		if (_index GREATER -1)
 			set (_sources ${COTIRE_TARGET_SOURCES})
 			set (_sourcesDefinitions ${COTIRE_TARGET_SOURCES_COMPILE_DEFINITIONS_${COTIRE_BUILD_TYPE}})
