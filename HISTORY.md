@@ -1,3 +1,8 @@
+## 1.0.7 (2012-04-02)
+
+* add support for Ninja generator introduced in CMake 2.8.8.
+* fix bug with initialization of variable `COTIRE_VERBOSE`.
+
 ## 1.0.6 (2012-04-01)
 
 * correctly handle builds where both `CMAKE_BUILD_TYPE` and `CMAKE_CONFIGURATION_TYPES` are set.

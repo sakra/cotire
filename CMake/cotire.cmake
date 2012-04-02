@@ -36,7 +36,7 @@ set(__COTIRE_INCLUDED TRUE)
 cmake_minimum_required(VERSION 2.8.5)
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.0.6")
+set (COTIRE_CMAKE_MODULE_VERSION "1.0.7")
 
 include(CMakeParseArguments)
 
@@ -198,7 +198,7 @@ function (cotire_get_source_file_property_values _valuesVar _property)
 	set (${_valuesVar} ${_values} PARENT_SCOPE)
 endfunction()
 
-function (cotrie_copy_set_properites _configurations _type _source _target)
+function (cotrie_resolve_config_properites _configurations _propertiesVar)
 	set (_properties "")
 	foreach (_property ${ARGN})
 		if ("${_property}" MATCHES "<CONFIG>")
@@ -211,6 +211,11 @@ function (cotrie_copy_set_properites _configurations _type _source _target)
 			list (APPEND _properties ${_property})
 		endif()
 	endforeach()
+	set (${_propertiesVar} ${_properties} PARENT_SCOPE)
+endfunction()
+
+function (cotrie_copy_set_properites _configurations _type _source _target)
+	cotrie_resolve_config_properites("${_configurations}" _properties ${ARGN})
 	foreach (_property ${_properties})
 		get_property(_isSet ${_type} ${_source} PROPERTY ${_property} SET)
 		if (_isSet)
@@ -1465,7 +1470,7 @@ function (cotire_setup_pch_file_compilation _language _targetScript _prefixFile 
 			# make first source file depend on prefix header
 			set_property (SOURCE ${_hostFile} APPEND PROPERTY OBJECT_DEPENDS "${_prefixFile}")
 		endif()
-	elseif ("${CMAKE_GENERATOR}" MATCHES "Makefiles")
+	elseif ("${CMAKE_GENERATOR}" MATCHES "Makefiles|Ninja")
 		# for makefile based generator, we add a custom command to precompile the prefix header
 		if (_targetScript)
 			cotire_set_cmd_to_prologue(_cmds)
@@ -1505,7 +1510,7 @@ function (cotire_setup_prefix_file_inclusion _language _target _wholeTarget _pre
 			# make source files depend on precompiled header
 			set_property (SOURCE ${_sourceFiles} APPEND PROPERTY OBJECT_DEPENDS "${_pchFile}")
 		endif()
-	elseif ("${CMAKE_GENERATOR}" MATCHES "Makefiles")
+	elseif ("${CMAKE_GENERATOR}" MATCHES "Makefiles|Ninja")
 		if (NOT _wholeTarget)
 			# for makefile based generator, we force the inclusion of the prefix header for a subset
 			# of the source files, if this is a multi-language target or has excluded files
@@ -1567,7 +1572,7 @@ function (cotire_setup_target_pch_usage _languages _target _wholeTarget)
 		# make Xcode precompile the generated prefix header with ProcessPCH and ProcessPCH++
 		set_target_properties(${_target} PROPERTIES XCODE_ATTRIBUTE_GCC_PRECOMPILE_PREFIX_HEADER "YES")
 		set_target_properties(${_target} PROPERTIES XCODE_ATTRIBUTE_GCC_PREFIX_HEADER "${_prefixHeader}")
-	elseif ("${CMAKE_GENERATOR}" MATCHES "Makefiles")
+	elseif ("${CMAKE_GENERATOR}" MATCHES "Makefiles|Ninja")
 		if (_wholeTarget)
 			# for makefile based generator, we force inclusion of the prefix header for all target source files
 			# if this is a single-language target without any excluded files
@@ -1888,7 +1893,7 @@ function (cotire_setup_clean_target _target)
 endfunction()
 
 function (cotire_setup_pch_target _languages _configurations _target)
-	if ("${CMAKE_GENERATOR}" MATCHES "Makefiles")
+	if ("${CMAKE_GENERATOR}" MATCHES "Makefiles|Ninja")
 		# for makefile based generators, we add a custom target to trigger the generation of the cotire related files
 		set (_dependsFiles "")
 		foreach (_language ${_languages})
@@ -1973,12 +1978,39 @@ function (cotire_setup_unity_build_target _languages _configurations _target)
 	else()
 		add_library(${_unityTargetName} ${_unityTargetSubType} EXCLUDE_FROM_ALL ${_unityTargetSources})
 	endif()
-	# copy output location properties
-	cotrie_copy_set_properites("${_configurations}" TARGET ${_target} ${_unityTargetName}
+	set (_outputDirProperties
 		ARCHIVE_OUTPUT_DIRECTORY ARCHIVE_OUTPUT_DIRECTORY_<CONFIG>
 		LIBRARY_OUTPUT_DIRECTORY LIBRARY_OUTPUT_DIRECTORY_<CONFIG>
-		RUNTIME_OUTPUT_DIRECTORY RUNTIME_OUTPUT_DIRECTORY_<CONFIG>
-		Fortran_MODULE_DIRECTORY)
+		RUNTIME_OUTPUT_DIRECTORY RUNTIME_OUTPUT_DIRECTORY_<CONFIG>)
+	# copy output location properties
+	if (COTIRE_UNITY_OUTPUT_DIRECTORY)
+		set (_setDefaultOutputDir TRUE)
+		if (IS_ABSOLUTE "${COTIRE_UNITY_OUTPUT_DIRECTORY}")
+			set (_outputDir "${COTIRE_UNITY_OUTPUT_DIRECTORY}")
+		else()
+			cotrie_copy_set_properites("${_configurations}" TARGET ${_target} ${_unityTargetName} ${_outputDirProperties})
+			cotrie_resolve_config_properites("${_configurations}" _properties ${_outputDirProperties})
+			foreach (_property ${_properties})
+				get_property(_outputDir TARGET ${_target} PROPERTY ${_property})
+				if (_outputDir)
+					get_filename_component(_outputDir "${_outputDir}/${COTIRE_UNITY_OUTPUT_DIRECTORY}" ABSOLUTE)
+					set_property(TARGET ${_target} PROPERTY ${_property} "${_outputDir}")
+					set (_setDefaultOutputDir FALSE)
+				endif()
+			endforeach()
+			if (_setDefaultOutputDir)
+				get_filename_component(_outputDir "${CMAKE_CURRENT_BINARY_DIR}/${COTIRE_UNITY_OUTPUT_DIRECTORY}" ABSOLUTE)
+			endif()
+		endif()
+		if (_setDefaultOutputDir)
+			set_target_properties(${_unityTargetName} PROPERTIES
+				ARCHIVE_OUTPUT_DIRECTORY "${_outputDir}"
+				LIBRARY_OUTPUT_DIRECTORY "${_outputDir}"
+				RUNTIME_OUTPUT_DIRECTORY "${_outputDir}")
+		endif()
+	else()
+		cotrie_copy_set_properites("${_configurations}" TARGET ${_target} ${_unityTargetName} ${_outputDirProperties})
+	endif()
 	# copy output name
 	cotrie_copy_set_properites("${_configurations}" TARGET ${_target} ${_unityTargetName}
 		ARCHIVE_OUTPUT_NAME ARCHIVE_OUTPUT_NAME_<CONFIG>
@@ -2329,7 +2361,7 @@ else()
 	endif()
 	option (COTIRE_DEBUG "Enable cotire debugging output?" ${COTIRE_DEBUG_INIT})
 
-	if (NOT DEFINED COTIRE_DEBUG_INIT)
+	if (NOT DEFINED COTIRE_VERBOSE_INIT)
 		if (DEFINED COTIRE_VERBOSE)
 			set (COTIRE_VERBOSE_INIT ${COTIRE_VERBOSE})
 		else()
@@ -2379,6 +2411,14 @@ else()
 	endif()
 	if (NOT DEFINED COTIRE_TARGETS_FOLDER)
 		set (COTIRE_TARGETS_FOLDER "cotire")
+	endif()
+	if (NOT DEFINED COTIRE_UNITY_OUTPUT_DIRECTORY)
+		if ("${CMAKE_GENERATOR}" MATCHES "Ninja")
+			# generated Ninja build files do not work if the unity target produces the same output file as the cotired target
+			set (COTIRE_UNITY_OUTPUT_DIRECTORY "unity")
+		else()
+			set (COTIRE_UNITY_OUTPUT_DIRECTORY "")
+		endif()
 	endif()
 
 	# define cotire cache variables
