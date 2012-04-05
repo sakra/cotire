@@ -26,7 +26,7 @@ features
 requirements
 ------------
 
-* [CMake 2.8.5][cmk] or newer. The executable `cmake` should be on the system path.
+* [CMake 2.8.6][cmk] or newer. The executable `cmake` should be on the system path.
 * [Visual Studio C++][vslstd], [MinGW][mingw] or [Cygwin][cgwn] under Windows.
 * [GCC][gcc] under Linux.
 * [Xcode][xcdt] developer tools package under OS X. This includes [Clang][clang].

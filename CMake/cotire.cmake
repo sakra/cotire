@@ -33,10 +33,11 @@ endif()
 set(__COTIRE_INCLUDED TRUE)
 
 # we need the CMake variables CMAKE_SCRIPT_MODE_FILE and CMAKE_ARGV available since 2.8.5
-cmake_minimum_required(VERSION 2.8.5)
+# we need APPEND_STRING option for set_property available since 2.8.6
+cmake_minimum_required(VERSION 2.8.6)
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.0.7")
+set (COTIRE_CMAKE_MODULE_VERSION "1.0.8")
 
 include(CMakeParseArguments)
 
