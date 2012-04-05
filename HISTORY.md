@@ -1,4 +1,4 @@
-## 1.0.7 (2012-04-05)
+## 1.0.8 (2012-04-05)
 
 * require CMake 2.8.6 since we are using `set_property` option `APPEND_STRING`.
 
