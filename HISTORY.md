@@ -1,3 +1,8 @@
+## 1.0.9 (2012-04-09)
+
+* add support for compiler wrappers like ccache.
+* under Mac OS X, apply `CMAKE_OSX_SYSROOT` to prefix header include and ignore paths.
+
 ## 1.0.8 (2012-04-05)
 
 * require CMake 2.8.6 since we are using `set_property` option `APPEND_STRING`.

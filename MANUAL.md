@@ -15,7 +15,7 @@ systems. The design of cotire tries to adhere to the following principles:
 #### as automatic as possible
 
 [Precompiled header][pch] and [unity builds][scu] are good ideas in principle, but in reality
-they do not work if the burdon of maintaining the required additional source files (a
+they do not work if the burden of maintaining the required additional source files (a
 [prefix header][pfh] and a unity source file) is put on the developer. A modern build system
 like CMake provides enough context information to have the build system generate and update
 these files automatically.
@@ -351,7 +351,7 @@ As an example, if these properties are set on a source file of the example proje
         COTIRE_UNITY_SOURCE_PRE_UNDEFS "max;min"
         COTIRE_UNITY_SOURCE_POST_UNDEFS "DEBUG_TYPE")
 
-This will make cotire add #undefs to the generated unity source file.
+This will make cotire add undefs to the generated unity source file.
 
     #ifdef __cplusplus
     #include "/Users/sakra/Documents/cotire/src/main.cpp"
@@ -373,6 +373,15 @@ source and the prefix header for verbose builds. `COTIRE_VERBOSE` defaults to `F
 When using a Makefile generator `COTIRE_VERBOSE` defaults to the value of the makefile variable
 `VERBOSE` (i.e., `make VERBOSE=1`).
 
+### using cotire with compiler wrappers
+
+Cotire is compatible with CMake compiler wrappers. For example, the use of [ccache][ccch] may be
+enabled in the following way upon configuring the project:
+
+    $ export CC="/usr/local/bin/ccache /usr/bin/gcc"
+    $ export CXX="/usr/local/bin/ccache /usr/bin/g++"
+    $ cmake ..
+
 cotire usage restrictions
 -------------------------
 
@@ -390,10 +399,16 @@ multiple targets.
 Neither GCC nor Clang support the use of precompiled headers when performing a Mac OS X
 multi-architecture build (e.g., using option `-DCMAKE_OSX_ARCHITECTURES=i386;x86_64`).
 
+### Objective-C
+
+CMake targets that contain Objective-C or Objective-C++ source files cannot be cotired.
+To get a workable build system, set the `COTIRE_EXCLUDED` property on .m and .mm source files.
+
 [1260]:http://www.cmake.org/Bug/view.php?id=1260
-[kde4macros]:http://kbfxmenu.googlecode.com/svn/trunk/kbfx3/cmakemodules/KDE4Macros.cmake
-[gcc_pch]:http://gcc.gnu.org/onlinedocs/gcc/Precompiled-Headers.html
+[ccch]:http://ccache.samba.org/
 [clang_pch]:http://clang.llvm.org/docs/UsersManual.html#precompiledheaders
+[gcc_pch]:http://gcc.gnu.org/onlinedocs/gcc/Precompiled-Headers.html
+[kde4macros]:http://kbfxmenu.googlecode.com/svn/trunk/kbfx3/cmakemodules/KDE4Macros.cmake
 [msvc_pch]:http://msdn.microsoft.com/en-us/library/szfdksca(v=vs.90).aspx
 [msvc_pch_create]:http://msdn.microsoft.com/en-us/library/7zc28563(v=vs.90).aspx
 [msvc_pch_use]:http://msdn.microsoft.com/en-us/library/z0atkd6c(v=vs.90).aspx

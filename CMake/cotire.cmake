@@ -37,7 +37,7 @@ set(__COTIRE_INCLUDED TRUE)
 cmake_minimum_required(VERSION 2.8.6)
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.0.8")
+set (COTIRE_CMAKE_MODULE_VERSION "1.0.9")
 
 include(CMakeParseArguments)
 
@@ -50,7 +50,8 @@ function (cotire_determine_compiler_version _language _versionPrefix)
 			else()
 				# cl.exe messes with the output streams unless the environment variable VS_UNICODE_OUTPUT is cleared
 				unset (ENV{VS_UNICODE_OUTPUT})
-				execute_process (COMMAND ${CMAKE_${_language}_COMPILER}
+				string (STRIP "${CMAKE_${_language}_COMPILER_ARG1}" _compilerArg1)
+				execute_process (COMMAND ${CMAKE_${_language}_COMPILER} ${_compilerArg1}
 					ERROR_VARIABLE _versionLine OUTPUT_QUIET TIMEOUT 10)
 				string (REGEX REPLACE ".*Version *([0-9]+(\\.[0-9]+)*).*" "\\1"
 					${_versionPrefix}_VERSION "${_versionLine}")
@@ -61,7 +62,8 @@ function (cotire_determine_compiler_version _language _versionPrefix)
 				set (${_versionPrefix}_VERSION "${CMAKE_${_language}_COMPILER_VERSION}")
 			else()
 				# assume GCC like command line interface
-				execute_process (COMMAND ${CMAKE_${_language}_COMPILER} "-dumpversion"
+				string (STRIP "${CMAKE_${_language}_COMPILER_ARG1}" _compilerArg1)
+				execute_process (COMMAND ${CMAKE_${_language}_COMPILER} ${_compilerArg1} "-dumpversion"
 					OUTPUT_VARIABLE ${_versionPrefix}_VERSION
 					OUTPUT_STRIP_TRAILING_WHITESPACE TIMEOUT 10)
 			endif()
@@ -113,6 +115,10 @@ function (cotire_filter_language_source_files _language _sourceFilesVar _exclude
 		set (_ignoreExtensions "${CMAKE_${_language}_IGNORE_EXTENSIONS}")
 	else()
 		set (_ignoreExtensions "")
+	endif()
+	if (COTIRE_DEBUG)
+		message (STATUS "${_language} source file extensions: ${_languageExtensions}")
+		message (STATUS "${_language} ignore extensions: ${_ignoreExtensions}")
 	endif()
 	foreach (_sourceFile ${ARGN})
 		get_source_file_property(_sourceIsHeaderOnly "${_sourceFile}" HEADER_FILE_ONLY)
@@ -465,6 +471,25 @@ function (cotire_get_target_compiler_flags _config _language _directory _target 
 	set (${_compilerFlagsVar} ${_compilerFlags} PARENT_SCOPE)
 endfunction()
 
+function (cotire_add_sys_root_paths _pathsVar)
+	if (APPLE)
+		if (CMAKE_OSX_SYSROOT AND CMAKE_${_language}_HAS_ISYSROOT)
+			foreach (_path IN LISTS ${_pathsVar})
+				if (IS_ABSOLUTE "${_path}")
+					get_filename_component(_path "${CMAKE_OSX_SYSROOT}/${_path}" ABSOLUTE)
+					if (EXISTS "${_path}")
+						list (APPEND ${_pathsVar} "${_path}")
+					endif()
+				endif()
+			endforeach()
+		endif()
+	endif()
+	set (${_pathsVar} ${${_pathsVar}} PARENT_SCOPE)
+	if (COTIRE_DEBUG)
+		message (STATUS "${_pathsVar}=${${_pathsVar}}")
+	endif()
+endfunction()
+
 function (cotire_get_source_extra_properties _sourceFile _pattern _resultVar)
 	set (_extraProperties ${ARGN})
 	set (_result "")
@@ -559,6 +584,17 @@ macro (cotire_set_cmd_to_prologue _cmdVar)
 		list (APPEND ${_cmdVar} "-DCOTIRE_VERBOSE:BOOL=$(VERBOSE)")
 	endif()
 endmacro()
+
+function (cotire_init_compile_cmd _cmdVar _language _compilerExe _compilerArg1)
+	if (NOT _compilerExe)
+		set (_compilerExe "${CMAKE_${_language}_COMPILER")
+	endif()
+	if (NOT _compilerArg1)
+		set (_compilerArg1 ${CMAKE_${_language}_COMPILER_ARG1})
+	endif()
+	string (STRIP "${_compilerArg1}" _compilerArg1)
+	set (${_cmdVar} "${_compilerExe}" ${_compilerArg1} PARENT_SCOPE)
+endfunction()
 
 macro (cotire_add_definitions_to_cmd _cmdVar)
 	foreach (_definition ${ARGN})
@@ -822,13 +858,11 @@ function (cotire_scan_includes _includesVar)
 	if (NOT _option_LANGUAGE)
 		set (_option_LANGUAGE "CXX")
 	endif()
-	if (NOT _option_COMPILER_EXECUTABLE)
-		set (_option_COMPILER_EXECUTABLE "${CMAKE_${_option_LANGUAGE}_COMPILER}")
-	endif()
 	if (NOT _option_COMPILER_ID)
 		set (_option_COMPILER_ID "${CMAKE_${_option_LANGUAGE}_ID}")
 	endif()
-	set (_cmd "${_option_COMPILER_EXECUTABLE}")
+	set (_cmd "${_option_COMPILER_EXECUTABLE}" ${_option_COMPILER_ARG1})
+	cotire_init_compile_cmd(_cmd "${_option_LANGUAGE}" "${_option_COMPILER_EXECUTABLE}" "${_option_COMPILER_ARG1}")
 	cotire_add_definitions_to_cmd(_cmd ${_option_COMPILE_DEFINITIONS})
 	cotire_add_compile_flags_to_cmd(_cmd ${_option_COMPILE_FLAGS})
 	cotire_add_includes_to_cmd(_cmd ${_option_INCLUDE_DIRECTORIES})
@@ -1052,18 +1086,17 @@ function (cotire_add_makedep_flags _language _compilerID _compilerVersion _flags
 	elseif ("${_compilerID}" STREQUAL "GNU")
 		# GCC options used
 		# -H print the name of each header file used
-		# -M do dependency scanning
-		# -MG don't raise error on missing files
+		# -E invoke preprocessor
 		# -fdirectives-only do not expand macros, requires GCC >= 4.3
 		if (_flags)
 			# append to list
-			list (APPEND _flags -H -M -MG)
+			list (APPEND _flags -H -E)
 			if (NOT "${_compilerVersion}" VERSION_LESS "4.3.0")
 				list (APPEND _flags "-fdirectives-only")
 			endif()
 		else()
 			# return as a flag string
-			set (_flags "-H -M -MG")
+			set (_flags "-H -E")
 			if (NOT "${_compilerVersion}" VERSION_LESS "4.3.0")
 				set (_flags "${_flags} -fdirectives-only")
 			endif()
@@ -1071,13 +1104,13 @@ function (cotire_add_makedep_flags _language _compilerID _compilerVersion _flags
 	elseif ("${_compilerID}" STREQUAL "Clang")
 		# Clang options used
 		# -H print the name of each header file used
-		# -M do dependency scanning
+		# -E invoke preprocessor
 		if (_flags)
 			# append to list
-			list (APPEND _flags -H -M)
+			list (APPEND _flags -H -E)
 		else()
 			# return as a flag string
-			set (_flags "-H -M")
+			set (_flags "-H -E")
 		endif()
 	else()
 		message (FATAL_ERROR "Unsupported ${_language} compiler ${_compilerID} version ${_compilerVersion}.")
@@ -1144,8 +1177,8 @@ function (cotire_add_pch_inclusion_flags _language _compilerID _compilerVersion 
 			# return as a flag string
 			set (_flags "/Yu\"${_prefixFileNative}\" /Fp\"${_pchFileNative}\" /FI\"${_prefixFileNative}\"")
 		endif()
-	elseif ("${_compilerID}" MATCHES "GNU|Clang")
-		# GCC / Clang options used
+	elseif ("${_compilerID}" STREQUAL "GNU")
+		# GCC options used
 		# -include process include file as the first line of the primary source file
 		# -Winvalid-pch warns if precompiled header is found but cannot be used
 		if (_flags)
@@ -1154,6 +1187,17 @@ function (cotire_add_pch_inclusion_flags _language _compilerID _compilerVersion 
 		else()
 			# return as a flag string
 			set (_flags "-include \"${_prefixFile}\" -Winvalid-pch")
+		endif()
+	elseif ("${_compilerID}" STREQUAL "Clang")
+		# Clang options used
+		# -include process include file as the first line of the primary source file
+		# -Qunused-arguments don't emit warning for unused driver arguments
+		if (_flags)
+			# append to list
+			list (APPEND _flags "-include" "${_prefixFile}" "-Qunused-arguments")
+		else()
+			# return as a flag string
+			set (_flags "-include \"${_prefixFile}\" -Qunused-arguments")
 		endif()
 	else()
 		message (FATAL_ERROR "Unsupported ${_language} compiler ${_compilerID} version ${_compilerVersion}.")
@@ -1169,13 +1213,10 @@ function (cotire_precompile_prefix_header _prefixFile _pchFile _hostFile)
 	if (NOT _option_LANGUAGE)
 		set (_option_LANGUAGE "CXX")
 	endif()
-	if (NOT _option_COMPILER_EXECUTABLE)
-		set (_option_COMPILER_EXECUTABLE "${CMAKE_${_option_LANGUAGE}_COMPILER")
-	endif()
 	if (NOT _option_COMPILER_ID)
 		set (_option_COMPILER_ID "${CMAKE_${_option_LANGUAGE}_ID}")
 	endif()
-	set (_cmd "${_option_COMPILER_EXECUTABLE}")
+	cotire_init_compile_cmd(_cmd "${_option_LANGUAGE}" "${_option_COMPILER_EXECUTABLE}" "${_option_COMPILER_ARG1}")
 	cotire_add_definitions_to_cmd(_cmd ${_option_COMPILE_DEFINITIONS})
 	cotire_add_compile_flags_to_cmd(_cmd ${_option_COMPILE_FLAGS})
 	cotire_add_includes_to_cmd(_cmd ${_option_INCLUDE_DIRECTORIES})
@@ -1406,7 +1447,9 @@ function (cotire_generate_target_script _language _configurations _target _targe
 	set (COTIRE_TARGET_LANGUAGE "${_language}")
 	cotire_determine_compiler_version("${COTIRE_TARGET_LANGUAGE}" COTIRE_${_language}_COMPILER)
 	get_target_property(COTIRE_TARGET_IGNORE_PATH ${_target} COTIRE_PREFIX_HEADER_IGNORE_PATH)
+	cotire_add_sys_root_paths(COTIRE_TARGET_IGNORE_PATH)
 	get_target_property(COTIRE_TARGET_INCLUDE_PATH ${_target} COTIRE_PREFIX_HEADER_INCLUDE_PATH)
+	cotire_add_sys_root_paths(COTIRE_TARGET_INCLUDE_PATH)
 	get_target_property(COTIRE_TARGET_PRE_UNDEFS ${_target} COTIRE_UNITY_SOURCE_PRE_UNDEFS)
 	get_target_property(COTIRE_TARGET_POST_UNDEFS ${_target} COTIRE_UNITY_SOURCE_POST_UNDEFS)
 	get_target_property(COTIRE_TARGET_MAXIMUM_NUMBER_OF_INCLUDES ${_target} COTIRE_UNITY_SOURCE_MAXIMUM_NUMBER_OF_INCLUDES)
@@ -1442,7 +1485,8 @@ function (cotire_generate_target_script _language _configurations _target _targe
 	set (_contents "")
 	foreach (_var IN LISTS _matchVars ITEMS
 		MSVC CMAKE_GENERATOR CMAKE_BUILD_TYPE CMAKE_CONFIGURATION_TYPES
-		CMAKE_${_language}_COMPILER_ID CMAKE_${_language}_COMPILER CMAKE_${_language}_SOURCE_FILE_EXTENSIONS)
+		CMAKE_${_language}_COMPILER_ID CMAKE_${_language}_COMPILER CMAKE_${_language}_COMPILER_ARG1
+		CMAKE_${_language}_SOURCE_FILE_EXTENSIONS)
 		if (DEFINED ${_var})
 			string (REPLACE "\"" "\\\"" _value "${${_var}}")
 			set (_contents "${_contents}set (${_var} \"${_value}\")\n")
@@ -1713,7 +1757,12 @@ function (cotire_make_target_message _target _languages _disableMsg _targetMsgVa
 	string (REPLACE ";" " " _languagesStr "${_languages}")
 	string (REPLACE ";" ", " _excludedStr "${ARGN}")
 	set (_targetMsg "")
-	if (NOT _targetUsePCH AND NOT _targetAddSCU)
+	if (NOT _languages)
+		set (_targetMsg "Target ${_target} cannot be cotired.")
+		if (_disableMsg)
+			set (_targetMsg "${_targetMsg} ${_disableMsg}")
+		endif()
+	elseif (NOT _targetUsePCH AND NOT _targetAddSCU)
 		set (_targetMsg "${_languagesStr} target ${_target} cotired without unity build and precompiled header.")
 		if (_disableMsg)
 			set (_targetMsg "${_targetMsg} ${_disableMsg}")
@@ -1786,6 +1835,12 @@ function (cotire_choose_target_languages _target _targetLanguagesVar)
 		endif()
 	endforeach()
 	set (_targetMsgLevel STATUS)
+	if (NOT _targetLanguages)
+		string (REPLACE ";" " or " _languagesStr "${_languages}")
+		set (_disableMsg "No ${_languagesStr} source files.")
+		set (_targetUsePCH FALSE)
+		set (_targetAddSCU FALSE)
+	endif()
 	if (_targetUsePCH)
 		list (LENGTH _allSourceFiles _numberOfSources)
 		if (_numberOfSources LESS ${COTIRE_MINIMUM_NUMBER_OF_TARGET_SOURCES})
@@ -2297,6 +2352,7 @@ if (CMAKE_SCRIPT_MODE_FILE)
 		cotire_generate_prefix_header(
 			"${COTIRE_ARGV3}" ${_files}
 			COMPILER_EXECUTABLE "${CMAKE_${COTIRE_TARGET_LANGUAGE}_COMPILER}"
+			COMPILER_ARG1 ${CMAKE_${COTIRE_TARGET_LANGUAGE}_COMPILER_ARG1}
 			COMPILER_ID "${CMAKE_${COTIRE_TARGET_LANGUAGE}_COMPILER_ID}"
 			COMPILER_VERSION "${COTIRE_${COTIRE_TARGET_LANGUAGE}_COMPILER_VERSION}"
 			LANGUAGE "${COTIRE_TARGET_LANGUAGE}"
@@ -2320,6 +2376,7 @@ if (CMAKE_SCRIPT_MODE_FILE)
 		cotire_precompile_prefix_header(
 			"${COTIRE_ARGV3}" "${COTIRE_ARGV4}" "${COTIRE_ARGV5}"
 			COMPILER_EXECUTABLE "${CMAKE_${COTIRE_TARGET_LANGUAGE}_COMPILER}"
+			COMPILER_ARG1 ${CMAKE_${COTIRE_TARGET_LANGUAGE}_COMPILER_ARG1}
 			COMPILER_ID "${CMAKE_${COTIRE_TARGET_LANGUAGE}_COMPILER_ID}"
 			COMPILER_VERSION "${COTIRE_${COTIRE_TARGET_LANGUAGE}_COMPILER_VERSION}"
 			LANGUAGE "${COTIRE_TARGET_LANGUAGE}"
