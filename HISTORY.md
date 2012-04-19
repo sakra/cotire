@@ -1,3 +1,10 @@
+## 1.1.0 (2012-04-19)
+
+* tested with CMake 2.8.8.
+* added example to manual that shows how to apply cotire to CMake object library targets.
+* fixed multiple bugs with handling of CMake single build type and multiple configuration builds.
+* added more robust parsing of localized MSVC `/showIncludes` output.
+
 ## 1.0.9 (2012-04-09)
 
 * add support for compiler wrappers like ccache.

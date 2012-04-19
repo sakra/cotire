@@ -269,7 +269,7 @@ directories. A target inherits the property value from its enclosing directory.
 ### disabling precompiled headers for small targets
 
 The cache variable `COTIRE_MINIMUM_NUMBER_OF_TARGET_SOURCES` can be set to the minimum number of
-source files required to enable the use of precompiled header. It defaults to 3.
+source files required to enable the use of a precompiled header. It defaults to 3.
 
 ### configuring the generation of the prefix header
 
@@ -382,6 +382,27 @@ enabled in the following way upon configuring the project:
     $ export CXX="/usr/local/bin/ccache /usr/bin/g++"
     $ cmake ..
 
+### applying cotire to object library targets
+
+CMake 2.8.8 introduced a new type of library target called [object library][objlib]. An object
+library is a convenience target that compiles multiple source files but does not create a linked
+target library for them, e.g.:
+
+    add_library(myLib OBJECT lib1.cpp lib2.cpp lib3.cpp)
+    add_executable(exeA $<TARGET_OBJECTS:myLib> mainA.cpp)
+    add_executable(exeB $<TARGET_OBJECTS:myLib> mainB.cpp)
+
+The `cotire` function can be applied to an object library target in a familiar fashion:
+
+    add_library(myLib OBJECT lib1.cpp lib2.cpp lib3.cpp)
+    cotire(myLib)
+    # use unity object library for executables
+    add_executable(exeA $<TARGET_OBJECTS:myLib_unity> mainA.cpp)
+    add_executable(exeB $<TARGET_OBJECTS:myLib_unity> mainB.cpp)
+
+Because object library targets do not support `PRE_BUILD` actions, precompiled header usage cannot
+be enabled for them for Xcode projects generated with CMake. Unity builds work as expected, though.
+
 cotire usage restrictions
 -------------------------
 
@@ -415,4 +436,5 @@ To get a workable build system, set the `COTIRE_EXCLUDED` property on .m and .mm
 [EoUB]:http://leewinder.co.uk/blog/?p=394
 [pch]:http://en.wikipedia.org/wiki/Precompiled_header
 [scu]:http://en.wikipedia.org/wiki/Single_Compilation_Unit
+[objlib]:http://www.cmake.org/cmake/help/cmake-2-8-docs.html#command:add_library
 [pfh]:http://en.wikipedia.org/wiki/Prefix_header
