@@ -1,3 +1,8 @@
+## 1.1.1 (2012-04-20)
+
+* fixed bug with generation of unity targets for `WIN32_EXECUTABLE` targets.
+* fixed bug with parsing of localized MSVC `/showIncludes` output.
+
 ## 1.1.0 (2012-04-19)
 
 * tested with CMake 2.8.8.

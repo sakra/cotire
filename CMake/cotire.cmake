@@ -37,7 +37,7 @@ set(__COTIRE_INCLUDED TRUE)
 cmake_minimum_required(VERSION 2.8.6)
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.1.0")
+set (COTIRE_CMAKE_MODULE_VERSION "1.1.1")
 
 include(CMakeParseArguments)
 
@@ -726,8 +726,8 @@ macro (cotire_parse_line _line _headerFileVar _headerDepthVar)
 		# cl.exe /showIncludes output looks different depending on the language pack used, e.g.:
 		# English: "Note: including file:   C:\directory\file"
 		# German: "Hinweis: Einlesen der Datei:   C:\directory\file"
-		# We use a very general regular expression, relying on the presence of the : character
-		if ("${_line}" MATCHES "( +)([^:]+:[^:]+)$")
+		# We use a very general regular expression, relying on the presence of the : characters
+		if ("${_line}" MATCHES ":( +)([^:]+:[^:]+)$")
 			# Visual Studio compiler output
 			string (LENGTH "${CMAKE_MATCH_1}" ${_headerDepthVar})
 			get_filename_component(${_headerFileVar} "${CMAKE_MATCH_2}" ABSOLUTE)
@@ -1974,7 +1974,7 @@ function (cotire_setup_unity_build_target _languages _configurations _target)
 	# determine unity target sub type
 	get_target_property(_targetType ${_target} TYPE)
 	if ("${_targetType}" STREQUAL "EXECUTABLE")
-		get_target_property(_isWin32 ${_target} WIN32)
+		get_target_property(_isWin32 ${_target} WIN32_EXECUTABLE)
 		get_target_property(_isMacOSX_Bundle ${_target} MACOSX_BUNDLE)
 		if (_isWin32)
 			set (_unityTargetSubType WIN32)
