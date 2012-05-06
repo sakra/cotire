@@ -1,3 +1,7 @@
+## 1.1.2 (2012-05-06)
+
+* make handling of include directories more robust agains invalid paths.
+
 ## 1.1.1 (2012-04-20)
 
 * fixed bug with generation of unity targets for `WIN32_EXECUTABLE` targets.
