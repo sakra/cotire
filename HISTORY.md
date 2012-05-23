@@ -1,6 +1,6 @@
 ## 1.1.2 (2012-05-06)
 
-* make handling of include directories more robust agains invalid paths.
+* make handling of include directories more robust against invalid paths.
 
 ## 1.1.1 (2012-04-20)
 
