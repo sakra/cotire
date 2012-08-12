@@ -32,12 +32,19 @@ if(__COTIRE_INCLUDED)
 endif()
 set(__COTIRE_INCLUDED TRUE)
 
+# call cmake_minimum_required, but prevent modification of the CMake policy stack in include mode
+if (NOT CMAKE_SCRIPT_MODE_FILE)
+	cmake_policy(PUSH)
+endif()
 # we need the CMake variables CMAKE_SCRIPT_MODE_FILE and CMAKE_ARGV available since 2.8.5
 # we need APPEND_STRING option for set_property available since 2.8.6
 cmake_minimum_required(VERSION 2.8.6)
+if (NOT CMAKE_SCRIPT_MODE_FILE)
+	cmake_policy(POP)
+endif()
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.1.2")
+set (COTIRE_CMAKE_MODULE_VERSION "1.1.3")
 
 include(CMakeParseArguments)
 
@@ -133,8 +140,13 @@ function (cotire_filter_language_source_files _language _sourceFilesVar _exclude
 			if (_sourceExt)
 				list (FIND _languageExtensions "${_sourceExt}" _sourceIndex)
 				list (FIND _ignoreExtensions "${_sourceExt}" _ignoreIndex)
-				if (_sourceIndex GREATER -1 AND _ignoreIndex LESS 0)
-					set (_sourceIsFiltered TRUE)
+				if (_ignoreIndex LESS 0)
+					if (_sourceIndex GREATER -1)
+						set (_sourceIsFiltered TRUE)
+					elseif ("${_sourceLanguage}" STREQUAL "${_language}")
+						# add to excluded sources, if file is not ignored and has correct language without having the correct extension
+						list (APPEND _excludedSourceFiles "${_sourceFile}")
+					endif()
 				endif()
 			endif()
 		endif()
@@ -296,13 +308,37 @@ function (cotire_get_target_compile_flags _config _language _directory _target _
 	if (_target)
 		# add option from CMake target type variable
 		get_target_property(_targetType ${_target} TYPE)
-		if (_targetType STREQUAL "MODULE_LIBRARY")
-			# flags variable for module library uses different name SHARED_MODULE
-			# (e.g., CMAKE_SHARED_MODULE_C_FLAGS)
-			set (_targetType SHARED_MODULE)
+		if (CMAKE_VERSION VERSION_LESS "2.8.9")
+			set (_PIC_Policy "OLD")
+		else()
+			# handle POSITION_INDEPENDENT_CODE property introduced with CMake 2.8.9 if policy CMP0018 is turned on
+			cmake_policy(GET CMP0018 _PIC_Policy)
 		endif()
-		if (CMAKE_${_targetType}_${_language}_FLAGS)
-			set (_compileFlags "${_compileFlags} ${CMAKE_${_targetType}_${_language}_FLAGS}")
+		if (COTIRE_DEBUG)
+			message(STATUS "CMP0018=${_PIC_Policy}, CMAKE_POLICY_DEFAULT_CMP0018=${CMAKE_POLICY_DEFAULT_CMP0018}")
+		endif()
+		if (_PIC_Policy STREQUAL "NEW")
+			# NEW behavior: honor the POSITION_INDEPENDENT_CODE target property
+			get_target_property(_targetPIC ${_target} POSITION_INDEPENDENT_CODE)
+			if (_targetPIC)
+				if (_targetType STREQUAL "EXECUTABLE")
+					if (CMAKE_${_targetType}_${_language}_FLAGS)
+						set (_compileFlags "${_compileFlags} ${CMAKE_${_language}_COMPILE_OPTIONS_PIE}")
+					else()
+						set (_compileFlags "${_compileFlags} ${CMAKE_${_language}_COMPILE_OPTIONS_PIC}")
+					endif()
+				endif()
+			endif()
+		else()
+			# OLD behavior or policy not set: use the value of CMAKE_SHARED_LIBRARY_<Lang>_FLAGS
+			if (_targetType STREQUAL "MODULE_LIBRARY")
+				# flags variable for module library uses different name SHARED_MODULE
+				# (e.g., CMAKE_SHARED_MODULE_C_FLAGS)
+				set (_targetType SHARED_MODULE)
+			endif()
+			if (CMAKE_${_targetType}_${_language}_FLAGS)
+				set (_compileFlags "${_compileFlags} ${CMAKE_${_targetType}_${_language}_FLAGS}")
+			endif()
 		endif()
 	endif()
 	if (_directory)
@@ -377,7 +413,12 @@ function (cotire_get_target_include_directories _config _language _directory _ta
 		if (CMAKE_INCLUDE_DIRECTORIES_PROJECT_BEFORE)
 			cotire_check_is_path_relative_to("${_dir}" _isRelative "${CMAKE_SOURCE_DIR}" "${CMAKE_BINARY_DIR}")
 			if (_isRelative)
-				list (INSERT _includeDirs _projectInsertIndex "${_dir}")
+				list (LENGTH _includeDirs _len)
+				if (_len EQUAL _projectInsertIndex)
+					list (APPEND _includeDirs "${_dir}")
+				else()
+					list (INSERT _includeDirs _projectInsertIndex "${_dir}")
+				endif()
 				math (EXPR _projectInsertIndex "${_projectInsertIndex} + 1")
 			else()
 				list (APPEND _includeDirs "${_dir}")
@@ -2078,7 +2119,8 @@ function (cotire_setup_unity_build_target _languages _configurations _target)
 		COMPILE_DEFINITIONS COMPILE_DEFINITIONS_<CONFIG>
 		COMPILE_FLAGS Fortran_FORMAT
 		INCLUDE_DIRECTORIES
-		INTERPROCEDURAL_OPTIMIZATION INTERPROCEDURAL_OPTIMIZATION_<CONFIG>)
+		INTERPROCEDURAL_OPTIMIZATION INTERPROCEDURAL_OPTIMIZATION_<CONFIG>
+		POSITION_INDEPENDENT_CODE)
 	# copy link stuff
 	cotrie_copy_set_properites("${_configurations}" TARGET ${_target} ${_unityTargetName}
 		BUILD_WITH_INSTALL_RPATH INSTALL_RPATH INSTALL_RPATH_USE_LINK_PATH SKIP_BUILD_RPATH
@@ -2088,7 +2130,7 @@ function (cotire_setup_unity_build_target _languages _configurations _target)
 		LINK_INTERFACE_MULTIPLICITY LINK_INTERFACE_MULTIPLICITY_<CONFIG>
 		LINK_SEARCH_START_STATIC LINK_SEARCH_END_STATIC
 		STATIC_LIBRARY_FLAGS STATIC_LIBRARY_FLAGS_<CONFIG>
-		SOVERSION VERSION)
+		NO_SONAME SOVERSION VERSION)
 	# copy Qt stuff
 	cotrie_copy_set_properites("${_configurations}" TARGET ${_target} ${_unityTargetName}
 		AUTOMOC AUTOMOC_MOC_OPTIONS)

@@ -1,3 +1,10 @@
+## 1.1.3 (2012-08-12)
+
+* fix out of range index operation upon building list of target include directories.
+* honor target properties `POSITION_INDEPENDENT_CODE` and `NO_SONAME` introduced with CMake 2.8.9.
+* make selection of target source files for requested target language more careful.
+* prevent modification of the CMake policy stack upon CMake version check.
+
 ## 1.1.2 (2012-05-06)
 
 * make handling of include directories more robust against invalid paths.
