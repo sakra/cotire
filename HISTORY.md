@@ -1,3 +1,8 @@
+## 1.1.4 (2012-08-15)
+
+* prevent redundant re-generation of the unity source, prefix header and precompiled header files
+  (this makes cotire more applicable to C++ projects that use Qt).
+
 ## 1.1.3 (2012-08-12)
 
 * fix out of range index operation upon building list of target include directories.

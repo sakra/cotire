@@ -44,7 +44,7 @@ if (NOT CMAKE_SCRIPT_MODE_FILE)
 endif()
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.1.3")
+set (COTIRE_CMAKE_MODULE_VERSION "1.1.4")
 
 include(CMakeParseArguments)
 
@@ -1680,15 +1680,23 @@ function (cotire_setup_unity_generation_commands _language _target _targetScript
 	foreach (_unityFile ${_unityFiles})
 		file (RELATIVE_PATH _unityFileRelPath "${CMAKE_BINARY_DIR}" "${_unityFile}")
 		set_property (SOURCE "${_unityFile}" PROPERTY GENERATED TRUE)
+		# set up compiled unity source dependencies
+		# this ensures that missing source files are generated before the unity file is compiled
+		if (COTIRE_DEBUG)
+			message (STATUS "${_unityCmd} OBJECT_DEPENDS ${_dependencySources}")
+		endif()
+		if (_dependencySources)
+			set_property (SOURCE "${_unityFile}" PROPERTY OBJECT_DEPENDS ${_dependencySources})
+		endif()
 		cotire_set_cmd_to_prologue(_unityCmd)
 		list (APPEND _unityCmd -P "${COTIRE_CMAKE_MODULE_FILE}" "unity" "${_targetScript}" "${_unityFile}")
 		if (COTIRE_DEBUG)
-			message (STATUS "add_custom_command: OUTPUT ${_unityFile} COMMAND ${_unityCmd} DEPENDS ${_targetScript} ${_dependencySources}")
+			message (STATUS "add_custom_command: OUTPUT ${_unityFile} COMMAND ${_unityCmd} DEPENDS ${_targetScript}")
 		endif()
 		add_custom_command(
 			OUTPUT "${_unityFile}"
 			COMMAND ${_unityCmd}
-			DEPENDS "${_targetScript}" ${_dependencySources}
+			DEPENDS "${_targetScript}"
 			COMMENT "Generating ${_language} unity source ${_unityFileRelPath}"
 			WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" VERBATIM)
 		list (APPEND ${_cmdsVar} COMMAND ${_unityCmd})
@@ -2331,13 +2339,13 @@ if (CMAKE_SCRIPT_MODE_FILE)
 		endif()
 	endforeach()
 
-	if (COTIRE_DEBUG)
-		message (STATUS "${COTIRE_ARGV0} ${COTIRE_ARGV1} ${COTIRE_ARGV2} ${COTIRE_ARGV3} ${COTIRE_ARGV4} ${COTIRE_ARGV5}")
-	endif()
-
 	# include target script if available
 	if ("${COTIRE_ARGV2}" MATCHES "\\.cmake$")
 		include("${COTIRE_ARGV2}")
+	endif()
+
+	if (COTIRE_DEBUG)
+		message (STATUS "${COTIRE_ARGV0} ${COTIRE_ARGV1} ${COTIRE_ARGV2} ${COTIRE_ARGV3} ${COTIRE_ARGV4} ${COTIRE_ARGV5}")
 	endif()
 
 	if (WIN32)
@@ -2378,7 +2386,7 @@ if (CMAKE_SCRIPT_MODE_FILE)
 		cotire_generate_unity_source(
 			"${COTIRE_ARGV3}" ${_sources}
 			LANGUAGE "${COTIRE_TARGET_LANGUAGE}"
-			DEPENDS "${COTIRE_ARGV0}" "${COTIRE_ARGV2}" ${COTIRE_TARGET_UNITY_DEPENDS}
+			DEPENDS "${COTIRE_ARGV0}" "${COTIRE_ARGV2}"
 			SOURCES_COMPILE_DEFINITIONS ${_sourcesDefinitions}
 			PRE_UNDEFS ${_targetPreUndefs}
 			POST_UNDEFS ${_targetPostUndefs}

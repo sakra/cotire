@@ -21,6 +21,7 @@ features
 * Leverages native precompiled header generation features of IDEs (Visual Studio and Xcode).
 * Compatible with CMake's [cross-compiling][ccrc] support.
 * Compatible with compiler wrappers like [ccache][ccch].
+* Applicable to CMake based Qt projects.
 * Tested with Windows, Linux and OS X.
 * MIT licensed.
 
