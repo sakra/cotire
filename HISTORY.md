@@ -1,3 +1,9 @@
+## 1.1.5 (2012-08-17)
+
+ * new cache variable `COTIRE_UNITY_SOURCE_EXCLUDE_EXTENSIONS` can be set to globally exclude
+   sources with the listed file extensions from the generated unity source.
+ * fix check for multi-architecture builds under OS X.
+
 ## 1.1.4 (2012-08-15)
 
 * prevent redundant re-generation of the unity source, prefix header and precompiled header files
@@ -29,7 +35,7 @@
 ## 1.0.9 (2012-04-09)
 
 * add support for compiler wrappers like ccache.
-* under Mac OS X, apply `CMAKE_OSX_SYSROOT` to prefix header include and ignore paths.
+* under OS X, apply `CMAKE_OSX_SYSROOT` to prefix header include and ignore paths.
 
 ## 1.0.8 (2012-04-05)
 

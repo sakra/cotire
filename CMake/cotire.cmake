@@ -44,7 +44,7 @@ if (NOT CMAKE_SCRIPT_MODE_FILE)
 endif()
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.1.4")
+set (COTIRE_CMAKE_MODULE_VERSION "1.1.5")
 
 include(CMakeParseArguments)
 
@@ -125,9 +125,15 @@ function (cotire_filter_language_source_files _language _sourceFilesVar _exclude
 	else()
 		set (_ignoreExtensions "")
 	endif()
+	if (COTIRE_UNITY_SOURCE_EXCLUDE_EXTENSIONS)
+		set (_excludeExtensions "${COTIRE_UNITY_SOURCE_EXCLUDE_EXTENSIONS}")
+	else()
+		set (_excludeExtensions "")
+	endif()
 	if (COTIRE_DEBUG)
 		message (STATUS "${_language} source file extensions: ${_languageExtensions}")
 		message (STATUS "${_language} ignore extensions: ${_ignoreExtensions}")
+		message (STATUS "${_language} exclude extensions: ${_excludeExtensions}")
 	endif()
 	foreach (_sourceFile ${ARGN})
 		get_source_file_property(_sourceIsHeaderOnly "${_sourceFile}" HEADER_FILE_ONLY)
@@ -138,14 +144,19 @@ function (cotire_filter_language_source_files _language _sourceFilesVar _exclude
 		if (NOT _sourceIsHeaderOnly AND NOT _sourceIsExternal AND NOT _sourceIsSymbolic)
 			cotire_get_source_file_extension("${_sourceFile}" _sourceExt)
 			if (_sourceExt)
-				list (FIND _languageExtensions "${_sourceExt}" _sourceIndex)
 				list (FIND _ignoreExtensions "${_sourceExt}" _ignoreIndex)
 				if (_ignoreIndex LESS 0)
-					if (_sourceIndex GREATER -1)
-						set (_sourceIsFiltered TRUE)
-					elseif ("${_sourceLanguage}" STREQUAL "${_language}")
-						# add to excluded sources, if file is not ignored and has correct language without having the correct extension
+					list (FIND _excludeExtensions "${_sourceExt}" _excludeIndex)
+					if (_excludeIndex GREATER -1)
 						list (APPEND _excludedSourceFiles "${_sourceFile}")
+					else()
+						list (FIND _languageExtensions "${_sourceExt}" _sourceIndex)
+						if (_sourceIndex GREATER -1)
+							set (_sourceIsFiltered TRUE)
+						elseif ("${_sourceLanguage}" STREQUAL "${_language}")
+							# add to excluded sources, if file is not ignored and has correct language without having the correct extension
+							list (APPEND _excludedSourceFiles "${_sourceFile}")
+						endif()
 					endif()
 				endif()
 			endif()
@@ -1309,11 +1320,13 @@ function (cotire_check_precompiled_header_support _language _target _msgVar)
 		set (${_msgVar} "Unsupported ${_language} compiler ${CMAKE_${_language}_COMPILER_ID}." PARENT_SCOPE)
 	endif()
 	if (APPLE)
-		# PCH compilation not supported by GCC / Clang when multiple build architectures (e.g., i386, x86_64) are selected
+		# PCH compilation not supported by GCC / Clang for multi-architecture builds (e.g., i386, x86_64)
 		if (CMAKE_CONFIGURATION_TYPES)
 			set (_configs ${CMAKE_CONFIGURATION_TYPES})
-		else()
+		elseif (CMAKE_BUILD_TYPE)
 			set (_configs ${CMAKE_BUILD_TYPE})
+		else()
+			set (_configs "None")
 		endif()
 		foreach (_config ${_configs})
 			cotire_get_target_compile_flags("${_config}" "${_language}" "${CMAKE_CURRENT_SOURCE_DIR}" "${_target}" _targetFlags)
@@ -1322,7 +1335,7 @@ function (cotire_check_precompiled_header_support _language _target _msgVar)
 			if (_numberOfArchitectures GREATER 1)
 				string (REPLACE ";" ", " _architectureStr "${_architectures}")
 				set (${_msgVar}
-					"Precompiled headers not supported on Darwin for multiple architecture builds (${_architectureStr})."
+					"Precompiled headers not supported on Darwin for multi-architecture builds (${_architectureStr})."
 					PARENT_SCOPE)
 				break()
 			endif()
@@ -2487,6 +2500,9 @@ else()
 	set (COTIRE_ADDITIONAL_PREFIX_HEADER_IGNORE_PATH "" CACHE STRING
 		"Ignore headers from these directories when generating the prefix header.")
 
+	set (COTIRE_UNITY_SOURCE_EXCLUDE_EXTENSIONS "m;mm" CACHE STRING
+		"Ignore sources with the listed file extensions from the generated unity source.")
+
 	set (COTIRE_MINIMUM_NUMBER_OF_TARGET_SOURCES "3" CACHE STRING
 		"Minimum number of sources in target required to enable use of precompiled header.")
 
@@ -2545,12 +2561,22 @@ else()
 
 	define_property(
 		CACHED_VARIABLE PROPERTY "COTIRE_ADDITIONAL_PREFIX_HEADER_IGNORE_EXTENSIONS"
-		BRIEF_DOCS "Ignore includes with the listed file extensions from the prefix header when generating the prefix header."
+		BRIEF_DOCS "Ignore includes with the listed file extensions from the generated prefix header."
 		FULL_DOCS
 			"The variable can be set to a semicolon separated list of file extensions."
 			"If a header file extension matches one in the list, it will be excluded from the generated prefix header."
 			"Includes with an extension in CMAKE_<LANG>_SOURCE_FILE_EXTENSIONS are always ignored."
 			"If not defined, defaults to inc;inl;ipp."
+	)
+
+	define_property(
+		CACHED_VARIABLE PROPERTY "COTIRE_UNITY_SOURCE_EXCLUDE_EXTENSIONS"
+		BRIEF_DOCS "Exclude sources with the listed file extensions from the generated unity source."
+		FULL_DOCS
+			"The variable can be set to a semicolon separated list of file extensions."
+			"If a source file extension matches one in the list, it will be excluded from the generated unity source file."
+			"Source files with an extension in CMAKE_<LANG>_IGNORE_EXTENSIONS are always excluded."
+			"If not defined, defaults to m;mm."
 	)
 
 	define_property(

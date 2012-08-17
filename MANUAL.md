@@ -325,6 +325,9 @@ Problematic source files should be moved towards the end.
 will not be included in the unity source file and will be compiled separately when the unity build
 is performed.
 
+* `COTIRE_UNITY_SOURCE_EXCLUDE_EXTENSIONS` can be used to exclude source files by file extension
+from inclusion in the generated unity source. It defaults to the CMake list `m;mm`.
+
 * If the unity source file is too large and the compilation process runs into a compiler limit,
 the target property `COTIRE_UNITY_SOURCE_MAXIMUM_NUMBER_OF_INCLUDES` can be set. If the target
 contains more than that number of source files, cotire will create multiple unity source files
@@ -422,8 +425,9 @@ multi-architecture build (e.g., using option `-DCMAKE_OSX_ARCHITECTURES=i386;x86
 
 ### Objective-C
 
-CMake targets that contain Objective-C or Objective-C++ source files cannot be cotired.
-To get a workable build system, set the `COTIRE_EXCLUDED` property on .m and .mm source files.
+CMake targets that contain Objective-C or Objective-C++ source files cannot be cotired. Source
+files ending with .m and .mm are excluded by default through the initial default setting of
+`COTIRE_UNITY_SOURCE_EXCLUDE_EXTENSIONS`.
 
 [1260]:http://www.cmake.org/Bug/view.php?id=1260
 [ccch]:http://ccache.samba.org/
