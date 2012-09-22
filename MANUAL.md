@@ -296,7 +296,7 @@ ignore other project related headers in `CMAKE_SOURCE_DIR`:
 The properties `COTIRE_PREFIX_HEADER_IGNORE_PATH` and `COTIRE_PREFIX_HEADER_INCLUDE_PATH` can
 also be set on directories.
 
-The following cache variables also affect the selection of prefix headers.
+The following cache variables also affect the selection of prefix headers:
 
 * Directory paths in `COTIRE_ADDITIONAL_PREFIX_HEADER_IGNORE_PATH` will be added to the list of
 ignored directories when the prefix header file is created.
@@ -311,6 +311,30 @@ when a target source file is changed, because this would always trigger a re-com
 precompiled header and would result in a rebuild of the whole target. To make the prefix header
 creation dependent on changes to certain target source files, the source file property
 `COTIRE_DEPENDENCY` can be set to `TRUE` for those files.
+
+### fixing linkage issues
+
+When a C++ program uses `extern "C"` on a system header file, cotire will not be able to detect
+that the include file needs C linkage and will include the file with C++ linkage in the generated
+prefix header instead. For example, the C interface to BLAS `cblas.h` usually has to be included
+as `extern "C"` in a C++ program:
+
+    extern "C" {
+    #include <cblas.h>
+    }
+
+The presence of `extern "C"` includes will prevent cotired targets from being linked successfully
+because of unresolved function references using the wrong linkage. To work around the problem,
+the property `COTIRE_PREFIX_HEADER_IGNORE_PATH` can be set to a list including the full path of
+the `extern "C"` header file. Here's an example:
+
+    set_property(DIRECTORY
+        PROPERTY COTIRE_PREFIX_HEADER_IGNORE_PATH
+            "${ATLAS_INCLUDE_DIR}/cblas.h"
+            "${CMAKE_SOURCE_DIR}" "${CMAKE_BINARY_DIR}")
+
+That way `cblas.h` will not be included in the generated prefix header and will not cause problems
+upon linking.
 
 ### configuring the generation of the unity source
 

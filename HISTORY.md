@@ -1,3 +1,9 @@
+## 1.1.6 (2012-09-22)
+
+* check result code upon scanning includes.
+* always add a `clean_cotire` target to easily clean up cotire generated files.
+* add section on `extern "C"` linkage issues to manual.
+
 ## 1.1.5 (2012-08-17)
 
  * new cache variable `COTIRE_UNITY_SOURCE_EXCLUDE_EXTENSIONS` can be set to globally exclude

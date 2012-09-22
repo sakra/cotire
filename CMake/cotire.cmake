@@ -44,7 +44,7 @@ if (NOT CMAKE_SCRIPT_MODE_FILE)
 endif()
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.1.5")
+set (COTIRE_CMAKE_MODULE_VERSION "1.1.6")
 
 include(CMakeParseArguments)
 
@@ -943,7 +943,11 @@ function (cotire_scan_includes _includesVar)
 		# cl.exe messes with the output streams unless the environment variable VS_UNICODE_OUTPUT is cleared
 		unset (ENV{VS_UNICODE_OUTPUT})
 	endif()
-	execute_process(COMMAND ${_cmd} WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" OUTPUT_QUIET ERROR_VARIABLE _output)
+	execute_process(COMMAND ${_cmd} WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+		RESULT_VARIABLE _result OUTPUT_QUIET ERROR_VARIABLE _output)
+	if (_result)
+		message (STATUS "Result ${_result} scanning includes of ${_existingSourceFiles}.")
+	endif()
 	cotire_parse_includes(
 		"${_option_LANGUAGE}" "${_output}"
 		"${_option_IGNORE_PATH}" "${_option_INCLUDE_PATH}"
@@ -2030,6 +2034,9 @@ function (cotire_setup_pch_target _languages _configurations _target)
 			cotire_init_target("${_pchTargetName}")
 			cotire_add_to_pch_all_target(${_pchTargetName})
 		endif()
+	else()
+		# for other generators, we add the "clean all" target to clean up the precompiled header
+		cotire_setup_clean_all_target()
 	endif()
 endfunction()
 
