@@ -1,3 +1,7 @@
+## 1.1.7 (2012-10-26)
+
+* cope with double slash characters in scanned include paths.
+
 ## 1.1.6 (2012-09-22)
 
 * check result code upon scanning includes.

@@ -44,7 +44,7 @@ if (NOT CMAKE_SCRIPT_MODE_FILE)
 endif()
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.1.6")
+set (COTIRE_CMAKE_MODULE_VERSION "1.1.7")
 
 include(CMakeParseArguments)
 
@@ -810,7 +810,11 @@ function (cotire_parse_includes _language _scanOutput _ignoredIncudeDirs _honore
 		# prevent CMake macro invocation errors due to backslash characters in Windows paths
 		string (REPLACE "\\" "/" _scanOutput "${_scanOutput}")
 	endif()
+	# canonize slashes
+	string (REPLACE "//" "/" _scanOutput "${_scanOutput}")
+	# prevent semicolon from being interpreted as a line separator
 	string (REPLACE ";" "\\;" _scanOutput "${_scanOutput}")
+	# then separate lines
 	string (REGEX REPLACE "\n" ";" _scanOutput "${_scanOutput}")
 	list (LENGTH _scanOutput _len)
 	# remove duplicate lines to speed up parsing
