@@ -44,7 +44,7 @@ if (NOT CMAKE_SCRIPT_MODE_FILE)
 endif()
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.1.7")
+set (COTIRE_CMAKE_MODULE_VERSION "1.1.8")
 
 include(CMakeParseArguments)
 
@@ -1709,6 +1709,10 @@ function (cotire_setup_unity_generation_commands _language _target _targetScript
 		if (_dependencySources)
 			set_property (SOURCE "${_unityFile}" PROPERTY OBJECT_DEPENDS ${_dependencySources})
 		endif()
+		if (MSVC)
+			# unity file compilation results in potentially huge object file, thus use /bigobj by default unter MSVC
+			set_property (SOURCE "${_unityFile}" APPEND_STRING PROPERTY COMPILE_FLAGS " /bigobj ")
+		endif()
 		cotire_set_cmd_to_prologue(_unityCmd)
 		list (APPEND _unityCmd -P "${COTIRE_CMAKE_MODULE_FILE}" "unity" "${_targetScript}" "${_unityFile}")
 		if (COTIRE_DEBUG)
@@ -2219,7 +2223,7 @@ function (cotire_target _target)
 	# trivial checks
 	get_target_property(_imported ${_target} IMPORTED)
 	if (_imported)
-		message (WARNING "Imported target ${_target} cannot be cotired")
+		message (WARNING "Imported target ${_target} cannot be cotired.")
 		return()
 	endif()
 	# check if target needs to be cotired for build type

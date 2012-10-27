@@ -1,3 +1,7 @@
+## 1.1.8 (2012-10-27)
+
+* when using MSVC, apply option `/bigobj` to compilation of generated unity files.
+
 ## 1.1.7 (2012-10-26)
 
 * cope with double slash characters in scanned include paths.
