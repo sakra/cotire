@@ -24,9 +24,8 @@ these files automatically.
 
 The configuration of precompiled headers usage and single computation unit builds belongs to the
 build system and not in the source code. Nobody wants to litter one's source files with `hdrstop`
-pragmas or be forced to add an include directive to every file. The same source code should build
-properly when a precompiled header isn't used and should build faster when a precompiled header
-is used.
+pragmas or be forced to add an include directive to every file. Source code should build properly
+when a precompiled header isn't used and should build faster when a precompiled header is used.
 
 #### minimal interface
 
@@ -233,6 +232,19 @@ If a source file's `COMPILE_FLAGS` are modified by cotire, it sets the source fi
 `COTIRE_TARGET` to the name of the target, that the source file's build command has been
 altered for.
 
+### changing the name of the generated unity build target
+
+By default cotire uses the name of the the original target with the suffix `_unity` appended
+for the name of the generated unity build target. To create the unity build target under a
+different name, set the `COTIRE_UNITY_TARGET_NAME` property:
+
+    add_executable(example_template main.cpp example.cpp log.cpp log.h example.h)
+    set_target_properties(example_template PROPERTIES COTIRE_UNITY_TARGET_NAME "example")
+    ...
+    cotire(example_template)
+
+Invoking the `example` target will then run the unity build.
+
 ### restricting cotire to certain build configurations
 
 To restrict the cotire related modifications to the build process to certain build configurations,
@@ -271,6 +283,30 @@ directories. A target inherits the property value from its enclosing directory.
 The cache variable `COTIRE_MINIMUM_NUMBER_OF_TARGET_SOURCES` can be set to the minimum number of
 source files required to enable the use of a precompiled header. It defaults to 3.
 
+### using a manually maintained prefix header instead of the automatically generated one
+
+cotire can be configured to use an existing manually maintained prefix header (e.g., Visual Studio
+projects often use a prefix header named `stdafx.h`) instead of the automatically generated one.
+Set the target property `COTIRE_CXX_PREFIX_HEADER_INIT` to the path of the existing prefix header
+file. The path is interpreted relative to the target source directory:
+
+    set_target_properties(example PROPERTIES COTIRE_CXX_PREFIX_HEADER_INIT "stdafx.h")
+    cotire(example)
+
+The property can also be set to a list of header files which will then make up the contents of
+the generated prefix header.
+
+### using a generated prefix header for multiple targets
+
+A prefix header that is generated for a cotired target can be applied to a different target that
+has been added in the same source directory:
+
+    cotire(example)
+    get_target_property(_prefixHeader example COTIRE_CXX_PREFIX_HEADER)
+    ...
+    set_target_properties(example2 PROPERTIES COTIRE_CXX_PREFIX_HEADER_INIT "${_prefixHeader}")
+    cotire(example2)
+
 ### configuring the generation of the prefix header
 
 There are multiple target properties which affect the generation of the prefix header:
@@ -304,7 +340,7 @@ ignored directories when the prefix header file is created.
 * `COTIRE_ADDITIONAL_PREFIX_HEADER_IGNORE_EXTENSIONS` can be used to ignore header files by file
 extension. It defaults to the CMake list `inc;inl;ipp`.
 
-During development changes to the project source files may affect the list of header files that
+During development, changes to the project source files may affect the list of header files that
 should be selected for inclusion in the prefix header (e.g., a standard include may be added or
 removed from a target source file). Cotire does not automatically recreate the prefix header,
 when a target source file is changed, because this would always trigger a re-compilation of the
@@ -325,8 +361,8 @@ as `extern "C"` in a C++ program:
 
 The presence of `extern "C"` includes will prevent cotired targets from being linked successfully
 because of unresolved function references using the wrong linkage. To work around the problem,
-the property `COTIRE_PREFIX_HEADER_IGNORE_PATH` can be set to a list including the full path of
-the `extern "C"` header file. Here's an example:
+the property `COTIRE_PREFIX_HEADER_IGNORE_PATH` can also include the full path of header files
+besides directories. Here is an example:
 
     set_property(DIRECTORY
         PROPERTY COTIRE_PREFIX_HEADER_IGNORE_PATH
@@ -335,6 +371,18 @@ the `extern "C"` header file. Here's an example:
 
 That way `cblas.h` will not be included in the generated prefix header and will not cause problems
 upon linking.
+
+### using a manually maintained unity source instead of the automatically generated one
+
+cotire can be configured to use an existing manually maintained unity source file instead of the
+automatically generated one. Set the target property `COTIRE_CXX_UNITY_SOURCE_INIT` to the path
+of the existing unity source file. Its path is interpreted relative to the target source directory:
+
+    set_target_properties(example PROPERTIES COTIRE_CXX_UNITY_SOURCE_INIT "example-all.cpp")
+    cotire(example)
+
+The property can also be set to a list of source files which will then make up the contents of
+the generated unity source file.
 
 ### configuring the generation of the unity source
 
@@ -390,7 +438,7 @@ This will make cotire add undefs to the generated unity source file.
     #endif
 
 The properties `COTIRE_UNITY_SOURCE_PRE_UNDEFS` and `COTIRE_UNITY_SOURCE_POST_UNDEFS` can also be
-set on targets. Cotire will add #undefs for each source file in the unity source then.
+set on targets. Cotire will add `#undef` directives for each source file in the unity source then.
 
 ### enabling verbose builds
 

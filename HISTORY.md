@@ -1,3 +1,16 @@
+## 1.2.0 (2012-11-01)
+
+* add support for manually maintained prefix header and unity source files.
+* the target property `COTIRE_<LANG>_PREFIX_HEADER_INIT` can be set to a user provided prefix
+  header file to be used instead of the automatically generated one (e.g., `stdafx.h`).
+* the new target property `COTIRE_<LANG>_UNITY_SOURCE_INIT` can be set to a user provided unity
+  source file to be used instead of the automatically generated one.
+* the target property `COTIRE_UNITY_TARGET_NAME` is no longer read-only. It can be set to the
+  desired name of the unity target that will be added by cotire.
+* add parameters `SOURCE_DIR` and `BINARY_DIR` to function `cotire` to allow for explicitly
+  specifying a target's source and binary directory, if target to be cotired has been added in a
+  different directory.
+
 ## 1.1.8 (2012-10-27)
 
 * when using MSVC, apply option `/bigobj` to compilation of generated unity files.
@@ -14,9 +27,9 @@
 
 ## 1.1.5 (2012-08-17)
 
- * new cache variable `COTIRE_UNITY_SOURCE_EXCLUDE_EXTENSIONS` can be set to globally exclude
-   sources with the listed file extensions from the generated unity source.
- * fix check for multi-architecture builds under OS X.
+* new cache variable `COTIRE_UNITY_SOURCE_EXCLUDE_EXTENSIONS` can be set to globally exclude
+  sources with the listed file extensions from the generated unity source.
+* fix check for multi-architecture builds under OS X.
 
 ## 1.1.4 (2012-08-15)
 
