@@ -3,7 +3,7 @@
 # See the cotire manual for usage hints.
 #
 #=============================================================================
-# Copyright 2012 Sascha Kratky
+# Copyright 2012-2013 Sascha Kratky
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
@@ -44,7 +44,7 @@ if (NOT CMAKE_SCRIPT_MODE_FILE)
 endif()
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.2.0")
+set (COTIRE_CMAKE_MODULE_VERSION "1.3.0")
 
 include(CMakeParseArguments)
 
@@ -257,8 +257,8 @@ function (cotrie_copy_set_properites _configurations _type _source _target)
 	endforeach()
 endfunction()
 
-function (cotire_filter_compile_flags _flagFilter _matchedOptionsVar _unmatchedOptionsVar)
-	if (MSVC)
+function (cotire_filter_compile_flags _language _flagFilter _matchedOptionsVar _unmatchedOptionsVar)
+	if (WIN32 AND CMAKE_${_language}_COMPILER_ID MATCHES "MSVC|Intel")
 		set (_flagPrefix "[/-]")
 	else()
 		set (_flagPrefix "--?")
@@ -406,7 +406,7 @@ function (cotire_get_target_include_directories _config _language _targetSourceD
 	endif()
 	# parse additional include directories from target compile flags
 	cotire_get_target_compile_flags("${_config}" "${_language}" "${_targetSourceDir}" "${_target}" _targetFlags)
-	cotire_filter_compile_flags("I" _dirs _ignore ${_targetFlags})
+	cotire_filter_compile_flags("I" "${_language}" _dirs _ignore ${_targetFlags})
 	if (_dirs)
 		list (APPEND _includeDirs ${_dirs})
 	endif()
@@ -504,7 +504,7 @@ function (cotire_get_target_compile_definitions _config _language _directory _ta
 	# parse additional compile definitions from target compile flags
 	# and don't look at directory compile definitions, which we already handled
 	cotire_get_target_compile_flags("${_config}" "${_language}" "" "${_target}" _targetFlags)
-	cotire_filter_compile_flags("D" _definitions _ignore ${_targetFlags})
+	cotire_filter_compile_flags("D" "${_language}" _definitions _ignore ${_targetFlags})
 	if (_definitions)
 		list (APPEND _configDefinitions ${_definitions})
 	endif()
@@ -518,7 +518,7 @@ endfunction()
 function (cotire_get_target_compiler_flags _config _language _directory _target _compilerFlagsVar)
 	# parse target compile flags omitting compile definitions and include directives
 	cotire_get_target_compile_flags("${_config}" "${_language}" "${_directory}" "${_target}" _targetFlags)
-	cotire_filter_compile_flags("[ID]" _ignore _compilerFlags ${_targetFlags})
+	cotire_filter_compile_flags("[ID]" "${_language}" _ignore _compilerFlags ${_targetFlags})
 	if (COTIRE_DEBUG AND _compileFlags)
 		message (STATUS "Target ${_target} compiler flags ${_compileFlags}")
 	endif()
@@ -650,9 +650,9 @@ function (cotire_init_compile_cmd _cmdVar _language _compilerExe _compilerArg1)
 	set (${_cmdVar} "${_compilerExe}" ${_compilerArg1} PARENT_SCOPE)
 endfunction()
 
-macro (cotire_add_definitions_to_cmd _cmdVar)
+macro (cotire_add_definitions_to_cmd _cmdVar _language)
 	foreach (_definition ${ARGN})
-		if (MSVC)
+		if (WIN32 AND CMAKE_${_language}_COMPILER_ID MATCHES "MSVC|Intel")
 			list (APPEND ${_cmdVar} "/D${_definition}")
 		else()
 			list (APPEND ${_cmdVar} "-D${_definition}")
@@ -660,9 +660,9 @@ macro (cotire_add_definitions_to_cmd _cmdVar)
 	endforeach()
 endmacro()
 
-macro (cotire_add_includes_to_cmd _cmdVar)
+macro (cotire_add_includes_to_cmd _cmdVar _language)
 	foreach (_include ${ARGN})
-		if (MSVC)
+		if (WIN32 AND CMAKE_${_language}_COMPILER_ID MATCHES "MSVC|Intel")
 			file (TO_NATIVE_PATH "${_include}" _include)
 			list (APPEND ${_cmdVar} "/I${_include}")
 		else()
@@ -921,9 +921,9 @@ function (cotire_scan_includes _includesVar)
 	endif()
 	set (_cmd "${_option_COMPILER_EXECUTABLE}" ${_option_COMPILER_ARG1})
 	cotire_init_compile_cmd(_cmd "${_option_LANGUAGE}" "${_option_COMPILER_EXECUTABLE}" "${_option_COMPILER_ARG1}")
-	cotire_add_definitions_to_cmd(_cmd ${_option_COMPILE_DEFINITIONS})
+	cotire_add_definitions_to_cmd(_cmd "${_option_LANGUAGE}" ${_option_COMPILE_DEFINITIONS})
 	cotire_add_compile_flags_to_cmd(_cmd ${_option_COMPILE_FLAGS})
-	cotire_add_includes_to_cmd(_cmd ${_option_INCLUDE_DIRECTORIES})
+	cotire_add_includes_to_cmd(_cmd "${_option_LANGUAGE}" ${_option_INCLUDE_DIRECTORIES})
 	cotire_add_makedep_flags("${_option_LANGUAGE}" "${_option_COMPILER_ID}" "${_option_COMPILER_VERSION}" _cmd)
 	# only consider existing source files for scanning
 	set (_existingSourceFiles "")
@@ -940,7 +940,7 @@ function (cotire_scan_includes _includesVar)
 	if (COTIRE_VERBOSE)
 		message (STATUS "execute_process: ${_cmd}")
 	endif()
-	if ("${_option_COMPILER_ID}" STREQUAL "MSVC")
+	if (_option_COMPILER_ID MATCHES "MSVC")
 		if (COTIRE_DEBUG)
 			message (STATUS "clearing VS_UNICODE_OUTPUT")
 		endif()
@@ -1009,7 +1009,7 @@ function (cotire_generate_unity_source _unityFile)
 	set(_oneValueArgs LANGUAGE)
 	set(_multiValueArgs
 		DEPENDS SOURCES_COMPILE_DEFINITIONS
-		PRE_UNDEFS SOURCES_PRE_UNDEFS POST_UNDEFS SOURCES_POST_UNDEFS)
+		PRE_UNDEFS SOURCES_PRE_UNDEFS POST_UNDEFS SOURCES_POST_UNDEFS PROLOGUE EPILOGUE)
 	cmake_parse_arguments(_option "${_options}" "${_oneValueArgs}" "${_multiValueArgs}" ${ARGN})
 	if (_option_DEPENDS)
 		cotire_check_file_up_to_date(_unityFileIsUpToDate "${_unityFile}" ${_option_DEPENDS})
@@ -1031,6 +1031,9 @@ function (cotire_generate_unity_source _unityFile)
 		set (_option_SOURCES_POST_UNDEFS "")
 	endif()
 	set (_contents "")
+	if (_option_PROLOGUE)
+		list (APPEND _contents ${_option_PROLOGUE})
+	endif()
 	if (_option_LANGUAGE AND _sourceFiles)
 		if ("${_option_LANGUAGE}" STREQUAL "CXX")
 			list (APPEND _contents "#ifdef __cplusplus")
@@ -1083,6 +1086,9 @@ function (cotire_generate_unity_source _unityFile)
 	if (_option_LANGUAGE AND _sourceFiles)
 		list (APPEND _contents "#endif")
 	endif()
+	if (_option_EPILOGUE)
+		list (APPEND _contents ${_option_EPILOGUE})
+	endif()
 	list (APPEND _contents "")
 	string (REPLACE ";" "\n" _contents "${_contents}")
 	if (COTIRE_VERBOSE)
@@ -1103,6 +1109,11 @@ function (cotire_generate_prefix_header _prefixFile)
 			return()
 		endif()
 	endif()
+	set (_epilogue "")
+	if (_option_COMPILER_ID MATCHES "Intel")
+		# Intel compiler requires hdrstop pragma to stop generating PCH file
+		set (_epilogue "#pragma hdrstop")
+	endif()
 	set (_sourceFiles ${_option_UNPARSED_ARGUMENTS})
 	cotire_scan_includes(_selectedHeaders ${_sourceFiles}
 		LANGUAGE "${_option_LANGUAGE}"
@@ -1116,7 +1127,7 @@ function (cotire_generate_prefix_header _prefixFile)
 		INCLUDE_PATH ${_option_INCLUDE_PATH}
 		IGNORE_EXTENSIONS ${_option_IGNORE_EXTENSIONS}
 		UNPARSED_LINES _unparsedLines)
-	cotire_generate_unity_source("${_prefixFile}" LANGUAGE "${_option_LANGUAGE}" ${_selectedHeaders})
+	cotire_generate_unity_source("${_prefixFile}" EPILOGUE ${_epilogue} LANGUAGE "${_option_LANGUAGE}" ${_selectedHeaders})
 	set (_unparsedLinesFile "${_prefixFile}.log")
 	if (_unparsedLines)
 		if (COTIRE_VERBOSE OR NOT _selectedHeaders)
@@ -1125,15 +1136,13 @@ function (cotire_generate_prefix_header _prefixFile)
 			message (STATUS "${_skippedLineCount} line(s) skipped, see ${_unparsedLinesFileRelPath}")
 		endif()
 		string (REPLACE ";" "\n" _unparsedLines "${_unparsedLines}")
-		file (WRITE "${_unparsedLinesFile}" "${_unparsedLines}\n")
-	else()
-		file (REMOVE "${_unparsedLinesFile}")
 	endif()
+	file (WRITE "${_unparsedLinesFile}" "${_unparsedLines}\n")
 endfunction()
 
 function (cotire_add_makedep_flags _language _compilerID _compilerVersion _flagsVar)
 	set (_flags ${${_flagsVar}})
-	if ("${_compilerID}" STREQUAL "MSVC")
+	if (_compilerID MATCHES "MSVC")
 		# cl.exe options used
 		# /nologo suppresses display of sign-on banner
 		# /TC treat all files named on the command line as C source files
@@ -1149,7 +1158,7 @@ function (cotire_add_makedep_flags _language _compilerID _compilerVersion _flags
 			# return as a flag string
 			set (_flags "${_sourceFileType${_language}} /EP /showIncludes")
 		endif()
-	elseif ("${_compilerID}" STREQUAL "GNU")
+	elseif (_compilerID MATCHES "GNU")
 		# GCC options used
 		# -H print the name of each header file used
 		# -E invoke preprocessor
@@ -1167,7 +1176,7 @@ function (cotire_add_makedep_flags _language _compilerID _compilerVersion _flags
 				set (_flags "${_flags} -fdirectives-only")
 			endif()
 		endif()
-	elseif ("${_compilerID}" STREQUAL "Clang")
+	elseif (_compilerID MATCHES "Clang")
 		# Clang options used
 		# -H print the name of each header file used
 		# -E invoke preprocessor
@@ -1178,6 +1187,42 @@ function (cotire_add_makedep_flags _language _compilerID _compilerVersion _flags
 			# return as a flag string
 			set (_flags "-H -E")
 		endif()
+	elseif (_compilerID MATCHES "Intel")
+		if (WIN32)
+			# Windows Intel options used
+			# /nologo do not display compiler version information
+			# /QH display the include file order
+			# /EP preprocess to stdout, omitting #line directives
+			# /TC process all source or unrecognized file types as C source files
+			# /TP process all source or unrecognized file types as C++ source files
+			set (_sourceFileTypeC "/TC")
+			set (_sourceFileTypeCXX "/TP")
+			if (_flags)
+				# append to list
+				list (APPEND _flags /nologo "${_sourceFileType${_language}}" /EP /QH)
+			else()
+				# return as a flag string
+				set (_flags "${_sourceFileType${_language}} /EP /QH")
+			endif()
+		else()
+			# Linux / Mac OS X Intel options used
+			# -H print the name of each header file used
+			# -EP preprocess to stdout, omitting #line directives
+			# -Kc++ process all source or unrecognized file types as C++ source files
+			if (_flags)
+				# append to list
+				if ("${_language}" STREQUAL "CXX")
+					list (APPEND _flags -Kc++)
+				endif()
+				list (APPEND _flags -H -EP)
+			else()
+				# return as a flag string
+				if ("${_language}" STREQUAL "CXX")
+					set (_flags "-Kc++ ")
+				endif()
+				set (_flags "${_flags}-H -EP")
+			endif()
+		endif()
 	else()
 		message (FATAL_ERROR "Unsupported ${_language} compiler ${_compilerID} version ${_compilerVersion}.")
 	endif()
@@ -1186,7 +1231,7 @@ endfunction()
 
 function (cotire_add_pch_compilation_flags _language _compilerID _compilerVersion _prefixFile _pchFile _hostFile _flagsVar)
 	set (_flags ${${_flagsVar}})
-	if ("${_compilerID}" STREQUAL "MSVC")
+	if (_compilerID MATCHES "MSVC")
 		file (TO_NATIVE_PATH "${_prefixFile}" _prefixFileNative)
 		file (TO_NATIVE_PATH "${_pchFile}" _pchFileNative)
 		file (TO_NATIVE_PATH "${_hostFile}" _hostFileNative)
@@ -1207,7 +1252,7 @@ function (cotire_add_pch_compilation_flags _language _compilerID _compilerVersio
 			# return as a flag string
 			set (_flags "/Yc\"${_prefixFileNative}\" /Fp\"${_pchFileNative}\" /FI\"${_prefixFileNative}\"")
 		endif()
-	elseif ("${_compilerID}" MATCHES "GNU|Clang")
+	elseif (_compilerID MATCHES "GNU|Clang")
 		# GCC / Clang options used
 		# -x specify the source language
 		# -c compile but do not link
@@ -1221,6 +1266,52 @@ function (cotire_add_pch_compilation_flags _language _compilerID _compilerVersio
 			# return as a flag string
 			set (_flags "-x ${_xLanguage_${_language}} -c \"${_prefixFile}\" -o \"${_pchFile}\"")
 		endif()
+	elseif (_compilerID MATCHES "Intel")
+		if (WIN32)
+			file (TO_NATIVE_PATH "${_prefixFile}" _prefixFileNative)
+			file (TO_NATIVE_PATH "${_pchFile}" _pchFileNative)
+			file (TO_NATIVE_PATH "${_hostFile}" _hostFileNative)
+			# Windows Intel options used
+			# /nologo do not display compiler version information
+			# /Yc create a precompiled header (PCH) file
+			# /Fp specify a path or file name for precompiled header files
+			# /FI tells the preprocessor to include a specified file name as the header file
+			# /TC process all source or unrecognized file types as C source files
+			# /TP process all source or unrecognized file types as C++ source files
+			# /Zs syntax check only
+			# /Qwd673 disable warning 673 (the initial sequence of preprocessing directives is not compatible with those of precompiled header file)
+			set (_sourceFileTypeC "/TC")
+			set (_sourceFileTypeCXX "/TP")
+			if (_flags)
+				# append to list
+				list (APPEND _flags /nologo "${_sourceFileType${_language}}"
+					"/Yc" "/Fp${_pchFileNative}" "/FI${_prefixFileNative}" /Zs "${_hostFileNative}" "/Qwd673")
+			else()
+				# return as a flag string
+				set (_flags "/Yc /Fp\"${_pchFileNative}\" /FI\"${_prefixFileNative}\" /Qwd673")
+			endif()
+		else()
+			# Linux / Mac OS X Intel options used
+			# -pch-dir location for precompiled header files
+			# -pch-create name of the precompiled header (PCH) to create
+			# -Kc++ process all source or unrecognized file types as C++ source files
+			# -fsyntax-only check only for correct syntax
+			# -wd673 disable warning 673 (the initial sequence of preprocessing directives is not compatible with those of precompiled header file)
+			get_filename_component(_pchDir "${_pchFile}" PATH)
+			get_filename_component(_pchName "${_pchFile}" NAME)
+			set (_xLanguage_C "c-header")
+			set (_xLanguage_CXX "c++-header")
+			if (_flags)
+				# append to list
+				if ("${_language}" STREQUAL "CXX")
+					list (APPEND _flags -Kc++)
+				endif()
+				list (APPEND _flags "-include" "${_prefixFile}" "-pch-dir" "${_pchDir}" "-pch-create" "${_pchName}" "-wd673" "-fsyntax-only" "${_hostFile}")
+			else()
+				# return as a flag string
+				set (_flags "-include \"${_prefixFile}\" -pch-dir \"${_pchDir}\" -pch-create \"${_pchName}\" -wd673")
+			endif()
+		endif()
 	else()
 		message (FATAL_ERROR "Unsupported ${_language} compiler ${_compilerID} version ${_compilerVersion}.")
 	endif()
@@ -1229,7 +1320,7 @@ endfunction()
 
 function (cotire_add_pch_inclusion_flags _language _compilerID _compilerVersion _prefixFile _pchFile _flagsVar)
 	set (_flags ${${_flagsVar}})
-	if ("${_compilerID}" STREQUAL "MSVC")
+	if (_compilerID MATCHES "MSVC")
 		file (TO_NATIVE_PATH "${_prefixFile}" _prefixFileNative)
 		file (TO_NATIVE_PATH "${_pchFile}" _pchFileNative)
 		# cl.exe options used
@@ -1243,7 +1334,7 @@ function (cotire_add_pch_inclusion_flags _language _compilerID _compilerVersion 
 			# return as a flag string
 			set (_flags "/Yu\"${_prefixFileNative}\" /Fp\"${_pchFileNative}\" /FI\"${_prefixFileNative}\"")
 		endif()
-	elseif ("${_compilerID}" STREQUAL "GNU")
+	elseif (_compilerID MATCHES "GNU")
 		# GCC options used
 		# -include process include file as the first line of the primary source file
 		# -Winvalid-pch warns if precompiled header is found but cannot be used
@@ -1254,7 +1345,7 @@ function (cotire_add_pch_inclusion_flags _language _compilerID _compilerVersion 
 			# return as a flag string
 			set (_flags "-include \"${_prefixFile}\" -Winvalid-pch")
 		endif()
-	elseif ("${_compilerID}" STREQUAL "Clang")
+	elseif (_compilerID MATCHES "Clang")
 		# Clang options used
 		# -include process include file as the first line of the primary source file
 		# -Qunused-arguments don't emit warning for unused driver arguments
@@ -1264,6 +1355,38 @@ function (cotire_add_pch_inclusion_flags _language _compilerID _compilerVersion 
 		else()
 			# return as a flag string
 			set (_flags "-include \"${_prefixFile}\" -Qunused-arguments")
+		endif()
+	elseif (_compilerID MATCHES "Intel")
+		if (WIN32)
+			file (TO_NATIVE_PATH "${_prefixFile}" _prefixFileNative)
+			file (TO_NATIVE_PATH "${_pchFile}" _pchFileNative)
+			# Windows Intel options used
+			# /Yu use a precompiled header (PCH) file
+			# /Fp specify a path or file name for precompiled header files
+			# /FI tells the preprocessor to include a specified file name as the header file
+			# /Qwd673 disable warning 673 (the initial sequence of preprocessing directives is not compatible with those of precompiled header file)
+			if (_flags)
+				# append to list
+				list (APPEND _flags "/Yu" "/Fp${_pchFileNative}" "/FI${_prefixFileNative}" "/Qwd673")
+			else()
+				# return as a flag string
+				set (_flags "/Yu /Fp\"${_pchFileNative}\" /FI\"${_prefixFileNative}\" /Qwd673")
+			endif()
+		else()
+			# Linux / Mac OS X Intel options used
+			# -pch-dir location for precompiled header files
+			# -pch-use name of the precompiled header (PCH) to use
+			# -include process include file as the first line of the primary source file
+			# -wd673 disable warning 673 (the initial sequence of preprocessing directives is not compatible with those of precompiled header file)
+			get_filename_component(_pchDir "${_pchFile}" PATH)
+			get_filename_component(_pchName "${_pchFile}" NAME)
+			if (_flags)
+				# append to list
+				list (APPEND _flags "-include" "${_prefixFile}" "-pch-dir" "${_pchDir}" "-pch-use" "${_pchName}" "-wd673")
+			else()
+				# return as a flag string
+				set (_flags "-include \"${_prefixFile}\" -pch-dir \"${_pchDir}\" -pch-use \"${_pchName}\" -wd673")
+			endif()
 		endif()
 	else()
 		message (FATAL_ERROR "Unsupported ${_language} compiler ${_compilerID} version ${_compilerVersion}.")
@@ -1283,16 +1406,16 @@ function (cotire_precompile_prefix_header _prefixFile _pchFile _hostFile)
 		set (_option_COMPILER_ID "${CMAKE_${_option_LANGUAGE}_ID}")
 	endif()
 	cotire_init_compile_cmd(_cmd "${_option_LANGUAGE}" "${_option_COMPILER_EXECUTABLE}" "${_option_COMPILER_ARG1}")
-	cotire_add_definitions_to_cmd(_cmd ${_option_COMPILE_DEFINITIONS})
+	cotire_add_definitions_to_cmd(_cmd "${_option_LANGUAGE}" ${_option_COMPILE_DEFINITIONS})
 	cotire_add_compile_flags_to_cmd(_cmd ${_option_COMPILE_FLAGS})
-	cotire_add_includes_to_cmd(_cmd ${_option_INCLUDE_DIRECTORIES})
+	cotire_add_includes_to_cmd(_cmd "${_option_LANGUAGE}" ${_option_INCLUDE_DIRECTORIES})
 	cotire_add_pch_compilation_flags(
 		"${_option_LANGUAGE}" "${_option_COMPILER_ID}" "${_option_COMPILER_VERSION}"
 		"${_prefixFile}" "${_pchFile}" "${_hostFile}" _cmd)
 	if (COTIRE_VERBOSE)
 		message (STATUS "execute_process: ${_cmd}")
 	endif()
-	if ("${_option_COMPILER_ID}" STREQUAL "MSVC")
+	if (_option_COMPILER_ID MATCHES "MSVC")
 		if (COTIRE_DEBUG)
 			message (STATUS "clearing VS_UNICODE_OUTPUT")
 		endif()
@@ -1306,24 +1429,33 @@ function (cotire_precompile_prefix_header _prefixFile _pchFile _hostFile)
 endfunction()
 
 function (cotire_check_precompiled_header_support _language _targetSourceDir _target _msgVar)
-	if (MSVC)
+	set (_unsupportedCompilerVersionMsg
+		"Precompiled headers not supported for ${_language} compiler ${CMAKE_${_language}_COMPILER_ID} version ${COTIRE_${_language}_COMPILER_VERSION}.")
+	if (CMAKE_${_language}_COMPILER_ID MATCHES "MSVC")
 		# supported since Visual Studio C++ 6.0
 		# and CMake does not support an earlier version
 		set (${_msgVar} "" PARENT_SCOPE)
-	elseif ("${CMAKE_${_language}_COMPILER_ID}" STREQUAL "GNU")
-		# GCC PCH support requires GCC >= 3.4
+	elseif (CMAKE_${_language}_COMPILER_ID MATCHES "GNU")
+		# GCC PCH support requires version >= 3.4
 		cotire_determine_compiler_version("${_language}" COTIRE_${_language}_COMPILER)
 		if ("${COTIRE_${_language}_COMPILER_VERSION}" MATCHES ".+" AND
 			"${COTIRE_${_language}_COMPILER_VERSION}" VERSION_LESS "3.4.0")
-			set (${_msgVar}
-		"Precompiled headers not supported for ${_language} compiler ${CMAKE_${_language}_COMPILER_ID} version ${COTIRE_${_language}_COMPILER_VERSION}."
-				PARENT_SCOPE)
+			set (${_msgVar} "${_unsupportedCompilerVersionMsg}" PARENT_SCOPE)
 		else()
 			set (${_msgVar} "" PARENT_SCOPE)
 		endif()
-	elseif ("${CMAKE_${_language}_COMPILER_ID}" STREQUAL "Clang")
-		# Clang has PCH support
+	elseif (CMAKE_${_language}_COMPILER_ID MATCHES "Clang")
+		# all Clang versions have PCH support
 		set (${_msgVar} "" PARENT_SCOPE)
+	elseif (CMAKE_${_language}_COMPILER_ID MATCHES "Intel")
+		# Intel PCH support requires version >= 8.0.0
+		cotire_determine_compiler_version("${_language}" COTIRE_${_language}_COMPILER)
+		if ("${COTIRE_${_language}_COMPILER_VERSION}" MATCHES ".+" AND
+			"${COTIRE_${_language}_COMPILER_VERSION}" VERSION_LESS "8.0.0")
+			set (${_msgVar} "${_unsupportedCompilerVersionMsg}" PARENT_SCOPE)
+		else()
+			set (${_msgVar} "" PARENT_SCOPE)
+		endif()
 	else()
 		set (${_msgVar} "Unsupported ${_language} compiler ${CMAKE_${_language}_COMPILER_ID}." PARENT_SCOPE)
 	endif()
@@ -1338,7 +1470,7 @@ function (cotire_check_precompiled_header_support _language _targetSourceDir _ta
 		endif()
 		foreach (_config ${_configs})
 			cotire_get_target_compile_flags("${_config}" "${_language}" "${_targetSourceDir}" "${_target}" _targetFlags)
-			cotire_filter_compile_flags("arch" _architectures _ignore ${_targetFlags})
+			cotire_filter_compile_flags("arch" "${_language}" _architectures _ignore ${_targetFlags})
 			list (LENGTH _architectures _numberOfArchitectures)
 			if (_numberOfArchitectures GREATER 1)
 				string (REPLACE ";" ", " _architectureStr "${_architectures}")
@@ -1420,7 +1552,7 @@ function (cotire_make_prefix_file_path _language _target _prefixFileVar)
 		if (NOT _language)
 			set (_language "C")
 		endif()
-		if (MSVC OR "${CMAKE_${_language}_COMPILER_ID}" MATCHES "GNU|Clang")
+		if (MSVC OR CMAKE_${_language}_COMPILER_ID MATCHES "GNU|Clang|Intel")
 			cotire_get_intermediate_dir(_baseDir)
 			set (${_prefixFileVar} "${_baseDir}/${_prefixFileName}" PARENT_SCOPE)
 		endif()
@@ -1438,12 +1570,15 @@ function (cotire_make_pch_file_path _language _targetSourceDir _target _pchFileV
 				return()
 			endif()
 			cotire_get_intermediate_dir(_baseDir)
-			if (MSVC)
+			if (CMAKE_${_language}_COMPILER_ID MATCHES "MSVC")
 				# MSVC uses the extension .pch added to the prefix header base name
 				set (${_pchFileVar} "${_baseDir}/${_prefixFileBaseName}.pch" PARENT_SCOPE)
-			elseif ("${CMAKE_${_language}_COMPILER_ID}" MATCHES "GNU|Clang")
+			elseif (CMAKE_${_language}_COMPILER_ID MATCHES "GNU|Clang")
 				# GCC / Clang look for a precompiled header corresponding to the prefix header with the extension .gch appended
 				set (${_pchFileVar} "${_baseDir}/${_prefixFileName}.gch" PARENT_SCOPE)
+			elseif (CMAKE_${_language}_COMPILER_ID MATCHES "Intel")
+				# Intel uses the extension .pchi added to the prefix header base name
+				set (${_pchFileVar} "${_baseDir}/${_prefixFileBaseName}.pchi" PARENT_SCOPE)
 			endif()
 		endif()
 	endif()
@@ -1555,10 +1690,10 @@ function (cotire_generate_target_script _language _configurations _targetSourceD
 	set (${_targetScriptVar} "${_targetCotireScript}" PARENT_SCOPE)
 endfunction()
 
-function (cotire_setup_pch_file_compilation _language _targetSourceDir _targetScript _prefixFile _pchFile)
+function (cotire_setup_pch_file_compilation _language _targetBinaryDir _targetScript _prefixFile _pchFile)
 	set (_sourceFiles ${ARGN})
-	if (MSVC)
-		# for Visual Studio, we attach the precompiled header compilation to the first source file
+	if (CMAKE_${_language}_COMPILER_ID MATCHES "MSVC|Intel")
+		# for Visual Studio and Intel, we attach the precompiled header compilation to the first source file
 		# the remaining files include the precompiled header, see cotire_setup_prefix_file_inclusion
 		if (_sourceFiles)
 			file (TO_NATIVE_PATH "${_prefixFile}" _prefixFileNative)
@@ -1567,7 +1702,7 @@ function (cotire_setup_pch_file_compilation _language _targetSourceDir _targetSc
 			set (_flags "")
 			cotire_determine_compiler_version("${_language}" COTIRE_${_language}_COMPILER)
 			cotire_add_pch_compilation_flags(
-				"${_language}" "MSVC" "${COTIRE_${_language}_COMPILER_VERSION}"
+				"${_language}" "${CMAKE_${_language}_COMPILER_ID}" "${COTIRE_${_language}_COMPILER_VERSION}"
 				"${_prefixFile}" "${_pchFile}" "${_hostFile}" _flags)
 			set_property (SOURCE ${_hostFile} APPEND_STRING PROPERTY COMPILE_FLAGS " ${_flags} ")
 			set_property (SOURCE ${_hostFile} APPEND PROPERTY OBJECT_OUTPUTS "${_pchFile}")
@@ -1597,8 +1732,8 @@ endfunction()
 
 function (cotire_setup_prefix_file_inclusion _language _target _wholeTarget _prefixFile _pchFile)
 	set (_sourceFiles ${ARGN})
-	if (MSVC)
-		# for Visual Studio, we include the precompiled header in all but the first source file
+	if (CMAKE_${_language}_COMPILER_ID MATCHES "MSVC|Intel")
+		# for Visual Studio and Intel, we include the precompiled header in all but the first source file
 		# the first source file does the precompiled header compilation, see cotire_setup_pch_file_compilation
 		list (LENGTH _sourceFiles _numberOfSourceFiles)
 		if (_numberOfSourceFiles GREATER 1)
@@ -1608,7 +1743,7 @@ function (cotire_setup_prefix_file_inclusion _language _target _wholeTarget _pre
 			set (_flags "")
 			cotire_determine_compiler_version("${_language}" COTIRE_${_language}_COMPILER)
 			cotire_add_pch_inclusion_flags(
-				"${_language}" "MSVC" "${COTIRE_${_language}_COMPILER_VERSION}"
+				"${_language}" "${CMAKE_${_language}_COMPILER_ID}" "${COTIRE_${_language}_COMPILER_VERSION}"
 				"${_prefixFile}" "${_pchFile}" _flags)
 			set_property (SOURCE ${_sourceFiles} APPEND_STRING PROPERTY COMPILE_FLAGS " ${_flags} ")
 			# make source files depend on precompiled header
@@ -1645,10 +1780,7 @@ function (cotire_get_first_set_property_value _propertyValueVar _type _object)
 endfunction()
 
 function (cotire_setup_target_pch_usage _languages _targetSourceDir _target _wholeTarget)
-	if (MSVC)
-		# for Visual Studio, precompiled header inclusion is always done on the source file level
-		# see cotire_setup_prefix_file_inclusion
-	elseif (XCODE)
+	if (XCODE)
 		# for Xcode, we attach a pre-build action to generate the unity sources and prefix headers
 		# if necessary, we also generate a single prefix header which includes all language specific prefix headers
 		set (_prefixFiles "")
@@ -1677,18 +1809,22 @@ function (cotire_setup_target_pch_usage _languages _targetSourceDir _target _who
 		set_target_properties(${_target} PROPERTIES XCODE_ATTRIBUTE_GCC_PRECOMPILE_PREFIX_HEADER "YES")
 		set_target_properties(${_target} PROPERTIES XCODE_ATTRIBUTE_GCC_PREFIX_HEADER "${_prefixHeader}")
 	elseif ("${CMAKE_GENERATOR}" MATCHES "Makefiles|Ninja")
+		# for makefile based generator, we force inclusion of the prefix header for all target source files
+		# if this is a single-language target without any excluded files
 		if (_wholeTarget)
-			# for makefile based generator, we force inclusion of the prefix header for all target source files
-			# if this is a single-language target without any excluded files
 			set (_language "${_languages}")
-			get_property(_prefixFile TARGET ${_target} PROPERTY COTIRE_${_language}_PREFIX_HEADER)
-			get_property(_pchFile TARGET ${_target} PROPERTY COTIRE_${_language}_PRECOMPILED_HEADER)
-			set (_flags "")
-			cotire_determine_compiler_version("${_language}" COTIRE_${_language}_COMPILER)
-			cotire_add_pch_inclusion_flags(
-				"${_language}" "${CMAKE_${_language}_COMPILER_ID}" "${COTIRE_${_language}_COMPILER_VERSION}"
-				"${_prefixFile}" "${_pchFile}" _flags)
-			set_property (TARGET ${_target} APPEND_STRING PROPERTY COMPILE_FLAGS " ${_flags} ")
+			# for Visual Studio and Intel, precompiled header inclusion is always done on the source file level
+			# see cotire_setup_prefix_file_inclusion
+			if (NOT CMAKE_${_language}_COMPILER_ID MATCHES "MSVC|Intel")
+				get_property(_prefixFile TARGET ${_target} PROPERTY COTIRE_${_language}_PREFIX_HEADER)
+				get_property(_pchFile TARGET ${_target} PROPERTY COTIRE_${_language}_PRECOMPILED_HEADER)
+				set (_flags "")
+				cotire_determine_compiler_version("${_language}" COTIRE_${_language}_COMPILER)
+				cotire_add_pch_inclusion_flags(
+					"${_language}" "${CMAKE_${_language}_COMPILER_ID}" "${COTIRE_${_language}_COMPILER_VERSION}"
+					"${_prefixFile}" "${_pchFile}" _flags)
+				set_property (TARGET ${_target} APPEND_STRING PROPERTY COMPILE_FLAGS " ${_flags} ")
+			endif()
 		endif()
 	endif()
 endfunction()
@@ -1707,8 +1843,8 @@ function (cotire_setup_unity_generation_commands _language _targetSourceDir _tar
 		if (_dependencySources)
 			set_property (SOURCE "${_unityFile}" PROPERTY OBJECT_DEPENDS ${_dependencySources})
 		endif()
-		if (MSVC)
-			# unity file compilation results in potentially huge object file, thus use /bigobj by default unter MSVC
+		if (WIN32 AND CMAKE_${_language}_COMPILER_ID MATCHES "MSVC|Intel")
+			# unity file compilation results in potentially huge object file, thus use /bigobj by default unter MSVC and Windows Intel
 			set_property (SOURCE "${_unityFile}" APPEND_STRING PROPERTY COMPILE_FLAGS "/bigobj")
 		endif()
 		cotire_set_cmd_to_prologue(_unityCmd)
@@ -1747,7 +1883,7 @@ function (cotire_setup_prefix_generation_command _language _target _targetSource
 		message (STATUS "add_custom_command: OUTPUT ${_prefixFile} COMMAND ${_prefixCmd} DEPENDS ${_targetScript} ${_unityFile} ${_dependencySources}")
 	endif()
 	add_custom_command(
-		OUTPUT "${_prefixFile}"
+		OUTPUT "${_prefixFile}" "${_prefixFile}.log"
 		COMMAND ${_prefixCmd}
 		DEPENDS "${_targetScript}" "${_unityFile}" ${_dependencySources}
 		COMMENT "Generating ${_language} prefix header ${_prefixFileRelPath}"
@@ -2010,7 +2146,7 @@ function (cotire_process_target_language _language _configurations _targetSource
 			cotire_make_pch_file_path(${_language} "${_targetSourceDir}" ${_target} _pchFile)
 			if (_pchFile)
 				cotire_setup_pch_file_compilation(
-					${_language} "${_targetSourceDir}" "${_targetScript}" "${_prefixFile}" "${_pchFile}" ${_sourceFiles})
+					${_language} "${_targetBinaryDir}" "${_targetScript}" "${_prefixFile}" "${_pchFile}" ${_sourceFiles})
 				if (_excludedSources)
 					set (_wholeTarget FALSE)
 				endif()
@@ -2049,9 +2185,9 @@ function (cotire_setup_pch_target _languages _configurations _target)
 		set (_dependsFiles "")
 		foreach (_language ${_languages})
 			set (_props COTIRE_${_language}_PREFIX_HEADER COTIRE_${_language}_UNITY_SOURCE)
-			if (NOT MSVC)
-				# Visual Studio only creates precompiled header as a side effect
-				list(INSERT _props 0 COTIRE_${_language}_PRECOMPILED_HEADER)
+			if (NOT CMAKE_${_language}_COMPILER_ID MATCHES "MSVC|Intel")
+				# Visual Studio and Intel only create precompiled header as a side effect
+				list (INSERT _props 0 COTIRE_${_language}_PRECOMPILED_HEADER)
 			endif()
 			cotire_get_first_set_property_value(_dependsFile TARGET ${_target} ${_props})
 			if (_dependsFile)
@@ -2133,7 +2269,7 @@ function (cotire_setup_unity_build_target _languages _configurations _targetSour
 				get_property(_pchFile TARGET ${_target} PROPERTY COTIRE_${_language}_PRECOMPILED_HEADER)
 				if (_prefixFile AND _pchFile)
 					cotire_setup_pch_file_compilation(
-						${_language} "${_targetSourceDir}" "" "${_prefixFile}" "${_pchFile}" ${_unityFiles})
+						${_language} "${_targetBinaryDir}" "" "${_prefixFile}" "${_pchFile}" ${_unityFiles})
 					cotire_setup_prefix_file_inclusion(
 						${_language} ${_target} FALSE "${_prefixFile}" "${_pchFile}" ${_unityFiles})
 					# add the prefix header to unity target sources
@@ -2222,6 +2358,7 @@ function (cotire_setup_unity_build_target _languages _configurations _targetSour
 	elseif (WIN32)
 		cotrie_copy_set_properites("${_configurations}" TARGET ${_target} ${_unityTargetName}
 			GNUtoMS
+			PDB_NAME PDB_NAME_<CONFIG> PDB_OUTPUT_DIRECTORY PDB_OUTPUT_DIRECTORY_<CONFIG>
 			VS_DOTNET_REFERENCES VS_GLOBAL_KEYWORD VS_GLOBAL_PROJECT_TYPES VS_KEYWORD
 			VS_SCC_AUXPATH VS_SCC_LOCALPATH VS_SCC_PROJECTNAME VS_SCC_PROVIDER
 			VS_WINRT_EXTENSIONS VS_WINRT_REFERENCES)

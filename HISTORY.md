@@ -1,3 +1,10 @@
+## 1.3.0 (2013-01-09)
+
+* add support for Intel C and C++ compilers.
+* CMake 2.8.10 compatibility fixes.
+* properly clean up generated cotire log files upon invoking `clean` target.
+* documentation updates.
+
 ## 1.2.0 (2012-11-01)
 
 * add support for manually maintained prefix header and unity source files.

@@ -193,8 +193,8 @@ build rule and generates the precompiled header as described in the documentatio
 [GCC][gcc_pch] and [Clang][clang_pch]. Cotire then modifies the `COMPILE_FLAGS` property of the
 target to force the inclusion of the prefix header.
 
-Visual Studio C++ uses a [different approach][msvc_pch] to pre-compiling. It requires a host
-source file to generate the precompiled header as a side effect of producing an object file.
+Visual Studio C++ and Intel C++ use a [different approach][msvc_pch] to pre-compiling. Both compilers
+require a host source file to generate the precompiled header as a side effect of producing an object file.
 Cotire modifies the `COMPILE_FLAGS` of the first target source file to [generate][msvc_pch_create]
 the precompiled header and then modifies the `COMPILE_FLAGS` of the remaining target source files
 to [include][msvc_pch_use] the generated precompiled header.
@@ -295,6 +295,10 @@ file. The path is interpreted relative to the target source directory:
 
 The property can also be set to a list of header files which will then make up the contents of
 the generated prefix header.
+
+If the prefix header `stdafx.h` needs an accompanying source file (e.g., `stdafx.cpp`) in order
+to be pre-compiled properly, that source file needs to be the first one on the list of source
+files in the target's `add_executable` or `add_library` call.
 
 ### using a generated prefix header for multiple targets
 
@@ -501,6 +505,11 @@ CMake targets that contain Objective-C or Objective-C++ source files cannot be c
 files ending with .m and .mm are excluded by default through the initial default setting of
 `COTIRE_UNITY_SOURCE_EXCLUDE_EXTENSIONS`.
 
+### Intel C++
+
+Intel C++ support has only been tested with [Intel C++ Composer XE 2013 for Linux][icc_linux] and may
+not work with other platforms or versions.
+
 [1260]:http://www.cmake.org/Bug/view.php?id=1260
 [ccch]:http://ccache.samba.org/
 [clang_pch]:http://clang.llvm.org/docs/UsersManual.html#precompiledheaders
@@ -514,3 +523,4 @@ files ending with .m and .mm are excluded by default through the initial default
 [scu]:http://en.wikipedia.org/wiki/Single_Compilation_Unit
 [objlib]:http://www.cmake.org/cmake/help/cmake-2-8-docs.html#command:add_library
 [pfh]:http://en.wikipedia.org/wiki/Prefix_header
+[icc_linux]:http://software.intel.com/en-us/non-commercial-software-development
