@@ -1,3 +1,7 @@
+## 1.3.1 (2013-01-29)
+
+* fix bug with filtering of compile options.
+
 ## 1.3.0 (2013-01-09)
 
 * add support for Intel C and C++ compilers.

@@ -44,7 +44,7 @@ if (NOT CMAKE_SCRIPT_MODE_FILE)
 endif()
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.3.0")
+set (COTIRE_CMAKE_MODULE_VERSION "1.3.1")
 
 include(CMakeParseArguments)
 
@@ -406,7 +406,7 @@ function (cotire_get_target_include_directories _config _language _targetSourceD
 	endif()
 	# parse additional include directories from target compile flags
 	cotire_get_target_compile_flags("${_config}" "${_language}" "${_targetSourceDir}" "${_target}" _targetFlags)
-	cotire_filter_compile_flags("I" "${_language}" _dirs _ignore ${_targetFlags})
+	cotire_filter_compile_flags("${_language}" "I" _dirs _ignore ${_targetFlags})
 	if (_dirs)
 		list (APPEND _includeDirs ${_dirs})
 	endif()
@@ -504,7 +504,7 @@ function (cotire_get_target_compile_definitions _config _language _directory _ta
 	# parse additional compile definitions from target compile flags
 	# and don't look at directory compile definitions, which we already handled
 	cotire_get_target_compile_flags("${_config}" "${_language}" "" "${_target}" _targetFlags)
-	cotire_filter_compile_flags("D" "${_language}" _definitions _ignore ${_targetFlags})
+	cotire_filter_compile_flags("${_language}" "D" _definitions _ignore ${_targetFlags})
 	if (_definitions)
 		list (APPEND _configDefinitions ${_definitions})
 	endif()
@@ -518,7 +518,7 @@ endfunction()
 function (cotire_get_target_compiler_flags _config _language _directory _target _compilerFlagsVar)
 	# parse target compile flags omitting compile definitions and include directives
 	cotire_get_target_compile_flags("${_config}" "${_language}" "${_directory}" "${_target}" _targetFlags)
-	cotire_filter_compile_flags("[ID]" "${_language}" _ignore _compilerFlags ${_targetFlags})
+	cotire_filter_compile_flags("${_language}" "[ID]" _ignore _compilerFlags ${_targetFlags})
 	if (COTIRE_DEBUG AND _compileFlags)
 		message (STATUS "Target ${_target} compiler flags ${_compileFlags}")
 	endif()
@@ -1470,7 +1470,7 @@ function (cotire_check_precompiled_header_support _language _targetSourceDir _ta
 		endif()
 		foreach (_config ${_configs})
 			cotire_get_target_compile_flags("${_config}" "${_language}" "${_targetSourceDir}" "${_target}" _targetFlags)
-			cotire_filter_compile_flags("arch" "${_language}" _architectures _ignore ${_targetFlags})
+			cotire_filter_compile_flags("${_language}" "arch" _architectures _ignore ${_targetFlags})
 			list (LENGTH _architectures _numberOfArchitectures)
 			if (_numberOfArchitectures GREATER 1)
 				string (REPLACE ";" ", " _architectureStr "${_architectures}")
