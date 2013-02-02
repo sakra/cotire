@@ -1,3 +1,7 @@
+## 1.3.2 (2013-02-02)
+
+* fixed missing curly brace (thanks shaunew).
+
 ## 1.3.1 (2013-01-29)
 
 * fix bug with filtering of compile options.

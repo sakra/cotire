@@ -44,7 +44,7 @@ if (NOT CMAKE_SCRIPT_MODE_FILE)
 endif()
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.3.1")
+set (COTIRE_CMAKE_MODULE_VERSION "1.3.2")
 
 include(CMakeParseArguments)
 
@@ -641,7 +641,7 @@ endmacro()
 
 function (cotire_init_compile_cmd _cmdVar _language _compilerExe _compilerArg1)
 	if (NOT _compilerExe)
-		set (_compilerExe "${CMAKE_${_language}_COMPILER")
+		set (_compilerExe "${CMAKE_${_language}_COMPILER}")
 	endif()
 	if (NOT _compilerArg1)
 		set (_compilerArg1 ${CMAKE_${_language}_COMPILER_ARG1})
