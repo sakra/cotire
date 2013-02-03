@@ -1,3 +1,9 @@
+## 1.3.3 (2013-02-03)
+
+* fixed bug with handling of policy CMP0018 relating to target property `POSITION_INDEPENDENT_CODE`.
+* fixed warnings relating to uninitialized variables.
+* Intel XE 2013 Update 2 compatibility fixes.
+
 ## 1.3.2 (2013-02-02)
 
 * fixed missing curly brace (thanks shaunew).

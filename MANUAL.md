@@ -510,6 +510,10 @@ files ending with .m and .mm are excluded by default through the initial default
 Intel C++ support has only been tested with [Intel C++ Composer XE 2013 for Linux][icc_linux] and may
 not work with other platforms or versions.
 
+The Intel compiler may issue incorrect warnings #672 (the command line options do not match those
+used when precompiled header was created) or #673 (the initial sequence of preprocessing directives
+is not compatible with those of precompiled header file) upon compilation of cotired targets.
+
 [1260]:http://www.cmake.org/Bug/view.php?id=1260
 [ccch]:http://ccache.samba.org/
 [clang_pch]:http://clang.llvm.org/docs/UsersManual.html#precompiledheaders

@@ -33,6 +33,7 @@ endif()
 set(__COTIRE_INCLUDED TRUE)
 
 # call cmake_minimum_required, but prevent modification of the CMake policy stack in include mode
+# cmake_minimum_required also sets the policy version as a side effect, which we have to avoid
 if (NOT CMAKE_SCRIPT_MODE_FILE)
 	cmake_policy(PUSH)
 endif()
@@ -44,7 +45,7 @@ if (NOT CMAKE_SCRIPT_MODE_FILE)
 endif()
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.3.2")
+set (COTIRE_CMAKE_MODULE_VERSION "1.3.3")
 
 include(CMakeParseArguments)
 
@@ -319,25 +320,24 @@ function (cotire_get_target_compile_flags _config _language _directory _target _
 	if (_target)
 		# add option from CMake target type variable
 		get_target_property(_targetType ${_target} TYPE)
-		if (CMAKE_VERSION VERSION_LESS "2.8.9")
-			set (_PIC_Policy "OLD")
-		else()
+		if (POLICY CMP0018)
 			# handle POSITION_INDEPENDENT_CODE property introduced with CMake 2.8.9 if policy CMP0018 is turned on
 			cmake_policy(GET CMP0018 _PIC_Policy)
+		else()
+			# default to old behavior
+			set (_PIC_Policy "OLD")
 		endif()
 		if (COTIRE_DEBUG)
-			message(STATUS "CMP0018=${_PIC_Policy}, CMAKE_POLICY_DEFAULT_CMP0018=${CMAKE_POLICY_DEFAULT_CMP0018}")
+			message(STATUS "CMP0018=${_PIC_Policy}")
 		endif()
 		if (_PIC_Policy STREQUAL "NEW")
 			# NEW behavior: honor the POSITION_INDEPENDENT_CODE target property
 			get_target_property(_targetPIC ${_target} POSITION_INDEPENDENT_CODE)
 			if (_targetPIC)
-				if (_targetType STREQUAL "EXECUTABLE")
-					if (CMAKE_${_targetType}_${_language}_FLAGS)
-						set (_compileFlags "${_compileFlags} ${CMAKE_${_language}_COMPILE_OPTIONS_PIE}")
-					else()
-						set (_compileFlags "${_compileFlags} ${CMAKE_${_language}_COMPILE_OPTIONS_PIC}")
-					endif()
+				if (_targetType STREQUAL "EXECUTABLE" AND CMAKE_${_language}_COMPILE_OPTIONS_PIE)
+					set (_compileFlags "${_compileFlags} ${CMAKE_${_language}_COMPILE_OPTIONS_PIE}")
+				elseif (CMAKE_${_language}_COMPILE_OPTIONS_PIC)
+					set (_compileFlags "${_compileFlags} ${CMAKE_${_language}_COMPILE_OPTIONS_PIC}")
 				endif()
 			endif()
 		else()
@@ -405,6 +405,7 @@ function (cotire_get_target_include_directories _config _language _targetSourceD
 		list (APPEND _includeDirs "${_targetSourceDir}")
 	endif()
 	# parse additional include directories from target compile flags
+	set (_targetFlags "")
 	cotire_get_target_compile_flags("${_config}" "${_language}" "${_targetSourceDir}" "${_target}" _targetFlags)
 	cotire_filter_compile_flags("${_language}" "I" _dirs _ignore ${_targetFlags})
 	if (_dirs)
@@ -503,6 +504,7 @@ function (cotire_get_target_compile_definitions _config _language _directory _ta
 	endif()
 	# parse additional compile definitions from target compile flags
 	# and don't look at directory compile definitions, which we already handled
+	set (_targetFlags "")
 	cotire_get_target_compile_flags("${_config}" "${_language}" "" "${_target}" _targetFlags)
 	cotire_filter_compile_flags("${_language}" "D" _definitions _ignore ${_targetFlags})
 	if (_definitions)
@@ -517,7 +519,9 @@ endfunction()
 
 function (cotire_get_target_compiler_flags _config _language _directory _target _compilerFlagsVar)
 	# parse target compile flags omitting compile definitions and include directives
+	set (_targetFlags "")
 	cotire_get_target_compile_flags("${_config}" "${_language}" "${_directory}" "${_target}" _targetFlags)
+	set (_compilerFlags "")
 	cotire_filter_compile_flags("${_language}" "[ID]" _ignore _compilerFlags ${_targetFlags})
 	if (COTIRE_DEBUG AND _compileFlags)
 		message (STATUS "Target ${_target} compiler flags ${_compileFlags}")
@@ -631,6 +635,9 @@ endfunction()
 
 macro (cotire_set_cmd_to_prologue _cmdVar)
 	set (${_cmdVar} "${CMAKE_COMMAND}")
+	if (COTIRE_DEBUG)
+		list (APPEND ${_cmdVar} "--warn-uninitialized")
+	endif()
 	list (APPEND ${_cmdVar} "-DCOTIRE_BUILD_TYPE:STRING=$<CONFIGURATION>")
 	if (COTIRE_VERBOSE)
 		list (APPEND ${_cmdVar} "-DCOTIRE_VERBOSE:BOOL=ON")
@@ -1279,16 +1286,22 @@ function (cotire_add_pch_compilation_flags _language _compilerID _compilerVersio
 			# /TC process all source or unrecognized file types as C source files
 			# /TP process all source or unrecognized file types as C++ source files
 			# /Zs syntax check only
-			# /Qwd673 disable warning 673 (the initial sequence of preprocessing directives is not compatible with those of precompiled header file)
+			# /Wpch-messages enable diagnostics related to pre-compiled headers (requires Intel XE 2013 Update 2)
 			set (_sourceFileTypeC "/TC")
 			set (_sourceFileTypeCXX "/TP")
 			if (_flags)
 				# append to list
 				list (APPEND _flags /nologo "${_sourceFileType${_language}}"
-					"/Yc" "/Fp${_pchFileNative}" "/FI${_prefixFileNative}" /Zs "${_hostFileNative}" "/Qwd673")
+					"/Yc" "/Fp${_pchFileNative}" "/FI${_prefixFileNative}" /Zs "${_hostFileNative}")
+				if (NOT "${_compilerVersion}" VERSION_LESS "13.1.0")
+					list (APPEND _flags "/Wpch-messages")
+				endif()
 			else()
 				# return as a flag string
-				set (_flags "/Yc /Fp\"${_pchFileNative}\" /FI\"${_prefixFileNative}\" /Qwd673")
+				set (_flags "/Yc /Fp\"${_pchFileNative}\" /FI\"${_prefixFileNative}\"")
+				if (NOT "${_compilerVersion}" VERSION_LESS "13.1.0")
+					set (_flags "${_flags} /Wpch-messages")
+				endif()
 			endif()
 		else()
 			# Linux / Mac OS X Intel options used
@@ -1296,7 +1309,7 @@ function (cotire_add_pch_compilation_flags _language _compilerID _compilerVersio
 			# -pch-create name of the precompiled header (PCH) to create
 			# -Kc++ process all source or unrecognized file types as C++ source files
 			# -fsyntax-only check only for correct syntax
-			# -wd673 disable warning 673 (the initial sequence of preprocessing directives is not compatible with those of precompiled header file)
+			# -Wpch-messages enable diagnostics related to pre-compiled headers (requires Intel XE 2013 Update 2)
 			get_filename_component(_pchDir "${_pchFile}" PATH)
 			get_filename_component(_pchName "${_pchFile}" NAME)
 			set (_xLanguage_C "c-header")
@@ -1306,10 +1319,16 @@ function (cotire_add_pch_compilation_flags _language _compilerID _compilerVersio
 				if ("${_language}" STREQUAL "CXX")
 					list (APPEND _flags -Kc++)
 				endif()
-				list (APPEND _flags "-include" "${_prefixFile}" "-pch-dir" "${_pchDir}" "-pch-create" "${_pchName}" "-wd673" "-fsyntax-only" "${_hostFile}")
+				list (APPEND _flags "-include" "${_prefixFile}" "-pch-dir" "${_pchDir}" "-pch-create" "${_pchName}" "-fsyntax-only" "${_hostFile}")
+				if (NOT "${_compilerVersion}" VERSION_LESS "13.1.0")
+					list (APPEND _flags "-Wpch-messages")
+				endif()
 			else()
 				# return as a flag string
-				set (_flags "-include \"${_prefixFile}\" -pch-dir \"${_pchDir}\" -pch-create \"${_pchName}\" -wd673")
+				set (_flags "-include \"${_prefixFile}\" -pch-dir \"${_pchDir}\" -pch-create \"${_pchName}\"")
+				if (NOT "${_compilerVersion}" VERSION_LESS "13.1.0")
+					set (_flags "${_flags} -Wpch-messages")
+				endif()
 			endif()
 		endif()
 	else()
@@ -1364,28 +1383,40 @@ function (cotire_add_pch_inclusion_flags _language _compilerID _compilerVersion 
 			# /Yu use a precompiled header (PCH) file
 			# /Fp specify a path or file name for precompiled header files
 			# /FI tells the preprocessor to include a specified file name as the header file
-			# /Qwd673 disable warning 673 (the initial sequence of preprocessing directives is not compatible with those of precompiled header file)
+			# /Wpch-messages enable diagnostics related to pre-compiled headers (requires Intel XE 2013 Update 2)
 			if (_flags)
 				# append to list
-				list (APPEND _flags "/Yu" "/Fp${_pchFileNative}" "/FI${_prefixFileNative}" "/Qwd673")
+				list (APPEND _flags "/Yu" "/Fp${_pchFileNative}" "/FI${_prefixFileNative}")
+				if (NOT "${_compilerVersion}" VERSION_LESS "13.1.0")
+					list (APPEND _flags "/Wpch-messages")
+				endif()
 			else()
 				# return as a flag string
-				set (_flags "/Yu /Fp\"${_pchFileNative}\" /FI\"${_prefixFileNative}\" /Qwd673")
+				set (_flags "/Yu /Fp\"${_pchFileNative}\" /FI\"${_prefixFileNative}\"")
+				if (NOT "${_compilerVersion}" VERSION_LESS "13.1.0")
+					set (_flags "${_flags} /Wpch-messages")
+				endif()
 			endif()
 		else()
 			# Linux / Mac OS X Intel options used
 			# -pch-dir location for precompiled header files
 			# -pch-use name of the precompiled header (PCH) to use
 			# -include process include file as the first line of the primary source file
-			# -wd673 disable warning 673 (the initial sequence of preprocessing directives is not compatible with those of precompiled header file)
+			# -Wpch-messages enable diagnostics related to pre-compiled headers (requires Intel XE 2013 Update 2)
 			get_filename_component(_pchDir "${_pchFile}" PATH)
 			get_filename_component(_pchName "${_pchFile}" NAME)
 			if (_flags)
 				# append to list
-				list (APPEND _flags "-include" "${_prefixFile}" "-pch-dir" "${_pchDir}" "-pch-use" "${_pchName}" "-wd673")
+				list (APPEND _flags "-include" "${_prefixFile}" "-pch-dir" "${_pchDir}" "-pch-use" "${_pchName}")
+				if (NOT "${_compilerVersion}" VERSION_LESS "13.1.0")
+					list (APPEND _flags "-Wpch-messages")
+				endif()
 			else()
 				# return as a flag string
-				set (_flags "-include \"${_prefixFile}\" -pch-dir \"${_pchDir}\" -pch-use \"${_pchName}\" -wd673")
+				set (_flags "-include \"${_prefixFile}\" -pch-dir \"${_pchDir}\" -pch-use \"${_pchName}\"")
+				if (NOT "${_compilerVersion}" VERSION_LESS "13.1.0")
+					set (_flags "${_flags} -Wpch-messages")
+				endif()
 			endif()
 		endif()
 	else()
@@ -1429,8 +1460,8 @@ function (cotire_precompile_prefix_header _prefixFile _pchFile _hostFile)
 endfunction()
 
 function (cotire_check_precompiled_header_support _language _targetSourceDir _target _msgVar)
-	set (_unsupportedCompilerVersionMsg
-		"Precompiled headers not supported for ${_language} compiler ${CMAKE_${_language}_COMPILER_ID} version ${COTIRE_${_language}_COMPILER_VERSION}.")
+	set (_unsupportedCompiler
+		"Precompiled headers not supported for ${_language} compiler ${CMAKE_${_language}_COMPILER_ID}")
 	if (CMAKE_${_language}_COMPILER_ID MATCHES "MSVC")
 		# supported since Visual Studio C++ 6.0
 		# and CMake does not support an earlier version
@@ -1440,7 +1471,7 @@ function (cotire_check_precompiled_header_support _language _targetSourceDir _ta
 		cotire_determine_compiler_version("${_language}" COTIRE_${_language}_COMPILER)
 		if ("${COTIRE_${_language}_COMPILER_VERSION}" MATCHES ".+" AND
 			"${COTIRE_${_language}_COMPILER_VERSION}" VERSION_LESS "3.4.0")
-			set (${_msgVar} "${_unsupportedCompilerVersionMsg}" PARENT_SCOPE)
+			set (${_msgVar} "${_unsupportedCompiler} version ${COTIRE_${_language}_COMPILER_VERSION}." PARENT_SCOPE)
 		else()
 			set (${_msgVar} "" PARENT_SCOPE)
 		endif()
@@ -1452,12 +1483,12 @@ function (cotire_check_precompiled_header_support _language _targetSourceDir _ta
 		cotire_determine_compiler_version("${_language}" COTIRE_${_language}_COMPILER)
 		if ("${COTIRE_${_language}_COMPILER_VERSION}" MATCHES ".+" AND
 			"${COTIRE_${_language}_COMPILER_VERSION}" VERSION_LESS "8.0.0")
-			set (${_msgVar} "${_unsupportedCompilerVersionMsg}" PARENT_SCOPE)
+			set (${_msgVar} "${_unsupportedCompiler} version ${COTIRE_${_language}_COMPILER_VERSION}." PARENT_SCOPE)
 		else()
 			set (${_msgVar} "" PARENT_SCOPE)
 		endif()
 	else()
-		set (${_msgVar} "Unsupported ${_language} compiler ${CMAKE_${_language}_COMPILER_ID}." PARENT_SCOPE)
+		set (${_msgVar} "${_unsupportedCompiler}." PARENT_SCOPE)
 	endif()
 	if (APPLE)
 		# PCH compilation not supported by GCC / Clang for multi-architecture builds (e.g., i386, x86_64)
@@ -1469,6 +1500,7 @@ function (cotire_check_precompiled_header_support _language _targetSourceDir _ta
 			set (_configs "None")
 		endif()
 		foreach (_config ${_configs})
+			set (_targetFlags "")
 			cotire_get_target_compile_flags("${_config}" "${_language}" "${_targetSourceDir}" "${_target}" _targetFlags)
 			cotire_filter_compile_flags("${_language}" "arch" _architectures _ignore ${_targetFlags})
 			list (LENGTH _architectures _numberOfArchitectures)
@@ -2561,6 +2593,7 @@ if (CMAKE_SCRIPT_MODE_FILE)
 
 	# include target script if available
 	if ("${COTIRE_ARGV2}" MATCHES "\\.cmake$")
+		# the included target scripts sets up additional variables relating to the target (e.g., COTIRE_TARGET_SOURCES)
 		include("${COTIRE_ARGV2}")
 	endif()
 
