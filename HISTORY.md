@@ -1,3 +1,8 @@
+## 1.3.4 (2013-02-07)
+
+* fixed bug with computing to output directory of the generated unity target (thanks shaunew).
+* fixed wrong variable reference in debugging output (thanks shaunew).
+
 ## 1.3.3 (2013-02-03)
 
 * fixed bug with handling of policy CMP0018 relating to target property `POSITION_INDEPENDENT_CODE`.

@@ -45,7 +45,7 @@ if (NOT CMAKE_SCRIPT_MODE_FILE)
 endif()
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.3.3")
+set (COTIRE_CMAKE_MODULE_VERSION "1.3.4")
 
 include(CMakeParseArguments)
 
@@ -523,8 +523,8 @@ function (cotire_get_target_compiler_flags _config _language _directory _target 
 	cotire_get_target_compile_flags("${_config}" "${_language}" "${_directory}" "${_target}" _targetFlags)
 	set (_compilerFlags "")
 	cotire_filter_compile_flags("${_language}" "[ID]" _ignore _compilerFlags ${_targetFlags})
-	if (COTIRE_DEBUG AND _compileFlags)
-		message (STATUS "Target ${_target} compiler flags ${_compileFlags}")
+	if (COTIRE_DEBUG AND _compilerFlags)
+		message (STATUS "Target ${_target} compiler flags ${_compilerFlags}")
 	endif()
 	set (${_compilerFlagsVar} ${_compilerFlags} PARENT_SCOPE)
 endfunction()
@@ -2335,7 +2335,7 @@ function (cotire_setup_unity_build_target _languages _configurations _targetSour
 				get_property(_outputDir TARGET ${_target} PROPERTY ${_property})
 				if (_outputDir)
 					get_filename_component(_outputDir "${_outputDir}/${COTIRE_UNITY_OUTPUT_DIRECTORY}" ABSOLUTE)
-					set_property(TARGET ${_target} PROPERTY ${_property} "${_outputDir}")
+					set_property(TARGET ${_unityTargetName} PROPERTY ${_property} "${_outputDir}")
 					set (_setDefaultOutputDir FALSE)
 				endif()
 			endforeach()
