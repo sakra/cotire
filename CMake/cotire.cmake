@@ -45,7 +45,7 @@ if (NOT CMAKE_SCRIPT_MODE_FILE)
 endif()
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.3.4")
+set (COTIRE_CMAKE_MODULE_VERSION "1.3.5")
 
 include(CMakeParseArguments)
 
@@ -1519,7 +1519,7 @@ macro (cotire_get_intermediate_dir _cotireDir)
 	get_filename_component(${_cotireDir} "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/${COTIRE_INTDIR}" ABSOLUTE)
 endmacro()
 
-function (cotire_make_untiy_source_file_paths _language _target _maxIncludes _unityFilesVar)
+function (cotire_make_unity_source_file_paths _language _target _maxIncludes _unityFilesVar)
 	set (_sourceFiles ${ARGN})
 	list (LENGTH _sourceFiles _numberOfSources)
 	set (_unityFileExt_C ".c")
@@ -1900,7 +1900,7 @@ function (cotire_setup_prefix_generation_command _language _target _targetSource
 	list (LENGTH _unityFiles _numberOfUnityFiles)
 	if (_numberOfUnityFiles GREATER 1)
 		# create a joint unity file from all unity file segments
-		cotire_make_untiy_source_file_paths(${_language} ${_target} 0 _unityFile ${_unityFiles})
+		cotire_make_unity_source_file_paths(${_language} ${_target} 0 _unityFile ${_unityFiles})
 		cotire_setup_combine_command("${_targetSourceDir}" "${_targetScript}" "${_unityFile}" "${_unityFiles}" ${_cmdsVar})
 	else()
 		set (_unityFile "${_unityFiles}")
@@ -2157,7 +2157,7 @@ function (cotire_process_target_language _language _configurations _targetSource
 	if (NOT _maxIncludes)
 		set (_maxIncludes 0)
 	endif()
-	cotire_make_untiy_source_file_paths(${_language} ${_target} ${_maxIncludes} _unityFiles ${_unitySourceFiles})
+	cotire_make_unity_source_file_paths(${_language} ${_target} ${_maxIncludes} _unityFiles ${_unitySourceFiles})
 	if (NOT _unityFiles)
 		return()
 	endif()
@@ -2844,7 +2844,7 @@ else()
 			"This may be set to an integer > 0."
 			"If a target contains more than that number of source files, cotire will create multiple unity source files for it."
 			"If not set, cotire will only create a single unity source file."
-			"Is use to initialize the target property COTIRE_UNITY_SOURCE_MAXIMUM_NUMBER_OF_INCLUDES."
+			"Is used to initialize the target property COTIRE_UNITY_SOURCE_MAXIMUM_NUMBER_OF_INCLUDES."
 			"Defaults to empty."
 	)
 

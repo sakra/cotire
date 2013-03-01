@@ -1,3 +1,7 @@
+## 1.3.5 (2013-03-01)
+
+* fix typos in function names and property descriptions.
+
 ## 1.3.4 (2013-02-07)
 
 * fixed bug with computing to output directory of the generated unity target (thanks shaunew).
