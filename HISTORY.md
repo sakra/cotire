@@ -1,3 +1,8 @@
+## 1.3.6 (2013-03-06)
+
+* fix bug with prefix header initialization for generator Xcode.
+* print cotire version upon inclusion.
+
 ## 1.3.5 (2013-03-01)
 
 * fix typos in function names and property descriptions.

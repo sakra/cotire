@@ -45,7 +45,7 @@ if (NOT CMAKE_SCRIPT_MODE_FILE)
 endif()
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.3.5")
+set (COTIRE_CMAKE_MODULE_VERSION "1.3.6")
 
 include(CMakeParseArguments)
 
@@ -1826,7 +1826,7 @@ function (cotire_setup_target_pch_usage _languages _targetSourceDir _target _who
 		list (LENGTH _prefixFiles _numberOfPrefixFiles)
 		if (_numberOfPrefixFiles GREATER 1)
 			cotire_make_prefix_file_path("" ${_target} _prefixHeader)
-			cotire_setup_combine_command("${_targetSourceDir}" "" "${_prefixHeader}" "${_prefixFiles}" _cmds)
+			cotire_setup_combine_command("${_targetSourceDir}" "" "${_prefixHeader}" _cmds ${_prefixFiles})
 		else()
 			set (_prefixHeader "${_prefixFiles}")
 		endif()
@@ -1901,7 +1901,7 @@ function (cotire_setup_prefix_generation_command _language _target _targetSource
 	if (_numberOfUnityFiles GREATER 1)
 		# create a joint unity file from all unity file segments
 		cotire_make_unity_source_file_paths(${_language} ${_target} 0 _unityFile ${_unityFiles})
-		cotire_setup_combine_command("${_targetSourceDir}" "${_targetScript}" "${_unityFile}" "${_unityFiles}" ${_cmdsVar})
+		cotire_setup_combine_command("${_targetSourceDir}" "${_targetScript}" "${_unityFile}" ${_cmdsVar} ${_unityFiles})
 	else()
 		set (_unityFile "${_unityFiles}")
 	endif()
@@ -1924,7 +1924,8 @@ function (cotire_setup_prefix_generation_command _language _target _targetSource
 	set (${_cmdsVar} ${${_cmdsVar}} PARENT_SCOPE)
 endfunction()
 
-function (cotire_setup_combine_command _sourceDir _targetScript _joinedFile _files _cmdsVar)
+function (cotire_setup_combine_command _sourceDir _targetScript _joinedFile _cmdsVar)
+	set (_files ${ARGN})
 	set (_filesPaths "")
 	foreach (_file ${_files})
 		if (IS_ABSOLUTE "${_file}")
@@ -1932,7 +1933,7 @@ function (cotire_setup_combine_command _sourceDir _targetScript _joinedFile _fil
 		else()
 			get_filename_component(_filePath "${_sourceDir}/${_file}" ABSOLUTE)
 		endif()
-		file (RELATIVE_PATH _fileRelPath "${CMAKE_BINARY_DIR}" "${_filePath}")
+		file (RELATIVE_PATH _fileRelPath "${_sourceDir}" "${_filePath}")
 		if (NOT IS_ABSOLUTE "${_fileRelPath}" AND NOT "${_fileRelPath}" MATCHES "^\\.\\.")
 			list (APPEND _filesPaths "${_fileRelPath}")
 		else()
@@ -1955,7 +1956,7 @@ function (cotire_setup_combine_command _sourceDir _targetScript _joinedFile _fil
 		COMMAND ${_prefixCmd}
 		DEPENDS ${_files}
 		COMMENT "Generating ${_joinedFileRelPath}"
-		WORKING_DIRECTORY "${CMAKE_BINARY_DIR}" VERBATIM)
+		WORKING_DIRECTORY "${_sourceDir}" VERBATIM)
 	list (APPEND ${_cmdsVar} COMMAND ${_prefixCmd})
 	set (${_cmdsVar} ${${_cmdsVar}} PARENT_SCOPE)
 endfunction()
@@ -2168,7 +2169,7 @@ function (cotire_process_target_language _language _configurations _targetSource
 		# check for user provided prefix header files
 		get_property(_prefixHeaderFiles TARGET ${_target} PROPERTY COTIRE_${_language}_PREFIX_HEADER_INIT)
 		if (_prefixHeaderFiles)
-			cotire_setup_combine_command("${_targetSourceDir}" "${_targetScript}" "${_prefixFile}" "${_prefixHeaderFiles}" _cmds)
+			cotire_setup_combine_command("${_targetSourceDir}" "${_targetScript}" "${_prefixFile}" _cmds ${_prefixHeaderFiles})
 		else()
 			cotire_setup_prefix_generation_command(
 				${_language} ${_target} "${_targetSourceDir}" "${_targetScript}" "${_prefixFile}" "${_unityFiles}" _cmds ${_unitySourceFiles})
@@ -3105,5 +3106,7 @@ else()
 			"cotire sets this property to the name of target, that the source file's build command has been altered for."
 			"Defaults to empty string."
 	)
+
+	message (STATUS "cotire ${COTIRE_CMAKE_MODULE_VERSION} loaded.")
 
 endif()
