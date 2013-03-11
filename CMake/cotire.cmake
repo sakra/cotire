@@ -45,9 +45,10 @@ if (NOT CMAKE_SCRIPT_MODE_FILE)
 endif()
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.3.6")
+set (COTIRE_CMAKE_MODULE_VERSION "1.4.0")
 
 include(CMakeParseArguments)
+include(ProcessorCount)
 
 function (cotire_determine_compiler_version _language _versionPrefix)
 	if (NOT ${_versionPrefix}_VERSION)
@@ -1519,11 +1520,31 @@ macro (cotire_get_intermediate_dir _cotireDir)
 	get_filename_component(${_cotireDir} "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/${COTIRE_INTDIR}" ABSOLUTE)
 endmacro()
 
-function (cotire_make_unity_source_file_paths _language _target _maxIncludes _unityFilesVar)
-	set (_sourceFiles ${ARGN})
-	list (LENGTH _sourceFiles _numberOfSources)
+macro (cotire_setup_file_extension_variables)
 	set (_unityFileExt_C ".c")
 	set (_unityFileExt_CXX ".cxx")
+	set (_prefixFileExt_C ".h")
+	set (_prefixFileExt_CXX ".hxx")
+endmacro()
+
+function (cotire_make_single_unity_source_file_path _language _target _unityFileVar)
+	cotire_setup_file_extension_variables()
+	if (NOT DEFINED _unityFileExt_${_language})
+		set (${_unityFileVar} "" PARENT_SCOPE)
+		return()
+	endif()
+	set (_unityFileBaseName "${_target}_${_language}${COTIRE_UNITY_SOURCE_FILENAME_SUFFIX}")
+	set (_unityFileName "${_unityFileBaseName}${_unityFileExt_${_language}}")
+	cotire_get_intermediate_dir(_baseDir)
+	set (_unityFile "${_baseDir}/${_unityFileName}")
+	set (${_unityFileVar} "${_unityFile}" PARENT_SCOPE)
+	if (COTIRE_DEBUG)
+		message(STATUS "${_unityFile}")
+	endif()
+endfunction()
+
+function (cotire_make_unity_source_file_paths _language _target _maxIncludes _unityFilesVar)
+	cotire_setup_file_extension_variables()
 	if (NOT DEFINED _unityFileExt_${_language})
 		set (${_unityFileVar} "" PARENT_SCOPE)
 		return()
@@ -1533,11 +1554,13 @@ function (cotire_make_unity_source_file_paths _language _target _maxIncludes _un
 	set (_startIndex 0)
 	set (_index 0)
 	set (_unityFiles "")
+	set (_sourceFiles ${ARGN})
 	foreach (_sourceFile ${_sourceFiles})
 		get_source_file_property(_startNew "${_sourceFile}" COTIRE_START_NEW_UNITY_SOURCE)
 		math (EXPR _unityFileCount "${_index} - ${_startIndex}")
 		if (_startNew OR (_maxIncludes GREATER 0 AND NOT _unityFileCount LESS _maxIncludes))
 			if (_index GREATER 0)
+				# start new unity file segment
 				math (EXPR _endIndex "${_index} - 1")
 				set (_unityFileName "${_unityFileBaseName}_${_startIndex}_${_endIndex}${_unityFileExt_${_language}}")
 				list (APPEND _unityFiles "${_baseDir}/${_unityFileName}")
@@ -1546,10 +1569,12 @@ function (cotire_make_unity_source_file_paths _language _target _maxIncludes _un
 		endif()
 		math (EXPR _index "${_index} + 1")
 	endforeach()
+	list (LENGTH _sourceFiles _numberOfSources)
 	if (_startIndex EQUAL 0)
-		set (_unityFileName "${_unityFileBaseName}${_unityFileExt_${_language}}")
-		list (APPEND _unityFiles "${_baseDir}/${_unityFileName}")
+		# there is only a single unity file
+		cotire_make_single_unity_source_file_path(${_language} ${_target} _unityFiles)
 	elseif (_startIndex LESS _numberOfSources)
+		# end with final unity file segment
 		math (EXPR _endIndex "${_index} - 1")
 		set (_unityFileName "${_unityFileBaseName}_${_startIndex}_${_endIndex}${_unityFileExt_${_language}}")
 		list (APPEND _unityFiles "${_baseDir}/${_unityFileName}")
@@ -1560,9 +1585,21 @@ function (cotire_make_unity_source_file_paths _language _target _maxIncludes _un
 	endif()
 endfunction()
 
+function (cotire_unity_to_prefix_file_path _language _target _unityFile _prefixFileVar)
+	cotire_setup_file_extension_variables()
+	if (NOT DEFINED _unityFileExt_${_language})
+		set (${_prefixFileVar} "" PARENT_SCOPE)
+		return()
+	endif()
+	set (_unityFileBaseName "${_target}_${_language}${COTIRE_UNITY_SOURCE_FILENAME_SUFFIX}")
+	set (_prefixFileBaseName "${_target}_${_language}${COTIRE_PREFIX_HEADER_FILENAME_SUFFIX}")
+	string (REPLACE "${_unityFileBaseName}" "${_prefixFileBaseName}" _prefixFile "${_unityFile}")
+	string (REGEX REPLACE "${_unityFileExt_${_language}}$" "${_prefixFileExt_${_language}}" _prefixFile "${_prefixFile}")
+	set (${_prefixFileVar} "${_prefixFile}" PARENT_SCOPE)
+endfunction()
+
 function (cotire_make_prefix_file_name _language _target _prefixFileBaseNameVar _prefixFileNameVar)
-	set (_prefixFileExt_C ".h")
-	set (_prefixFileExt_CXX ".hxx")
+	cotire_setup_file_extension_variables()
 	if (NOT _language)
 		set (_prefixFileBaseName "${_target}${COTIRE_PREFIX_HEADER_FILENAME_SUFFIX}")
 		set (_prefixFileName "${_prefixFileBaseName}${_prefixFileExt_C}")
@@ -1811,6 +1848,43 @@ function (cotire_get_first_set_property_value _propertyValueVar _type _object)
 	set (${_propertyValueVar} "" PARENT_SCOPE)
 endfunction()
 
+function (cotire_setup_combine_command _sourceDir _targetScript _joinedFile _cmdsVar)
+	set (_files ${ARGN})
+	set (_filesPaths "")
+	foreach (_file ${_files})
+		if (IS_ABSOLUTE "${_file}")
+			set (_filePath "${_file}")
+		else()
+			get_filename_component(_filePath "${_sourceDir}/${_file}" ABSOLUTE)
+		endif()
+		file (RELATIVE_PATH _fileRelPath "${_sourceDir}" "${_filePath}")
+		if (NOT IS_ABSOLUTE "${_fileRelPath}" AND NOT "${_fileRelPath}" MATCHES "^\\.\\.")
+			list (APPEND _filesPaths "${_fileRelPath}")
+		else()
+			list (APPEND _filesPaths "${_filePath}")
+		endif()
+	endforeach()
+	cotire_set_cmd_to_prologue(_prefixCmd)
+	list (APPEND _prefixCmd -P "${COTIRE_CMAKE_MODULE_FILE}" "combine")
+	if (_targetScript)
+		list (APPEND _prefixCmd "${_targetScript}")
+	endif()
+	list (APPEND _prefixCmd "${_joinedFile}" ${_filesPaths})
+	if (COTIRE_DEBUG)
+		message (STATUS "add_custom_command: OUTPUT ${_joinedFile} COMMAND ${_prefixCmd} DEPENDS ${_files}")
+	endif()
+	set_property (SOURCE "${_joinedFile}" PROPERTY GENERATED TRUE)
+	file (RELATIVE_PATH _joinedFileRelPath "${CMAKE_BINARY_DIR}" "${_joinedFile}")
+	add_custom_command(
+		OUTPUT "${_joinedFile}"
+		COMMAND ${_prefixCmd}
+		DEPENDS ${_files}
+		COMMENT "Generating ${_joinedFileRelPath}"
+		WORKING_DIRECTORY "${_sourceDir}" VERBATIM)
+	list (APPEND ${_cmdsVar} COMMAND ${_prefixCmd})
+	set (${_cmdsVar} ${${_cmdsVar}} PARENT_SCOPE)
+endfunction()
+
 function (cotire_setup_target_pch_usage _languages _targetSourceDir _target _wholeTarget)
 	if (XCODE)
 		# for Xcode, we attach a pre-build action to generate the unity sources and prefix headers
@@ -1892,20 +1966,17 @@ function (cotire_setup_unity_generation_commands _language _targetSourceDir _tar
 			WORKING_DIRECTORY "${_targetSourceDir}" VERBATIM)
 		list (APPEND ${_cmdsVar} COMMAND ${_unityCmd})
 	endforeach()
-	set (${_cmdsVar} ${${_cmdsVar}} PARENT_SCOPE)
-endfunction()
-
-function (cotire_setup_prefix_generation_command _language _target _targetSourceDir _targetScript _prefixFile _unityFiles _cmdsVar)
-	set (_sourceFiles ${ARGN})
 	list (LENGTH _unityFiles _numberOfUnityFiles)
 	if (_numberOfUnityFiles GREATER 1)
 		# create a joint unity file from all unity file segments
-		cotire_make_unity_source_file_paths(${_language} ${_target} 0 _unityFile ${_unityFiles})
+		cotire_make_single_unity_source_file_path(${_language} ${_target} _unityFile)
 		cotire_setup_combine_command("${_targetSourceDir}" "${_targetScript}" "${_unityFile}" ${_cmdsVar} ${_unityFiles})
-	else()
-		set (_unityFile "${_unityFiles}")
 	endif()
-	file (RELATIVE_PATH _prefixFileRelPath "${CMAKE_BINARY_DIR}" "${_prefixFile}")
+	set (${_cmdsVar} ${${_cmdsVar}} PARENT_SCOPE)
+endfunction()
+
+function (cotire_setup_single_prefix_generation_command _language _target _targetSourceDir _targetScript _prefixFile _unityFile _cmdsVar)
+	set (_sourceFiles ${ARGN})
 	set (_dependencySources "")
 	cotire_get_prefix_header_dependencies(${_language} ${_target} _dependencySources ${_sourceFiles})
 	cotire_set_cmd_to_prologue(_prefixCmd)
@@ -1914,6 +1985,7 @@ function (cotire_setup_prefix_generation_command _language _target _targetSource
 	if (COTIRE_DEBUG)
 		message (STATUS "add_custom_command: OUTPUT ${_prefixFile} COMMAND ${_prefixCmd} DEPENDS ${_targetScript} ${_unityFile} ${_dependencySources}")
 	endif()
+	file (RELATIVE_PATH _prefixFileRelPath "${CMAKE_BINARY_DIR}" "${_prefixFile}")
 	add_custom_command(
 		OUTPUT "${_prefixFile}" "${_prefixFile}.log"
 		COMMAND ${_prefixCmd}
@@ -1924,40 +1996,25 @@ function (cotire_setup_prefix_generation_command _language _target _targetSource
 	set (${_cmdsVar} ${${_cmdsVar}} PARENT_SCOPE)
 endfunction()
 
-function (cotire_setup_combine_command _sourceDir _targetScript _joinedFile _cmdsVar)
-	set (_files ${ARGN})
-	set (_filesPaths "")
-	foreach (_file ${_files})
-		if (IS_ABSOLUTE "${_file}")
-			set (_filePath "${_file}")
-		else()
-			get_filename_component(_filePath "${_sourceDir}/${_file}" ABSOLUTE)
-		endif()
-		file (RELATIVE_PATH _fileRelPath "${_sourceDir}" "${_filePath}")
-		if (NOT IS_ABSOLUTE "${_fileRelPath}" AND NOT "${_fileRelPath}" MATCHES "^\\.\\.")
-			list (APPEND _filesPaths "${_fileRelPath}")
-		else()
-			list (APPEND _filesPaths "${_filePath}")
-		endif()
-	endforeach()
-	cotire_set_cmd_to_prologue(_prefixCmd)
-	list (APPEND _prefixCmd -P "${COTIRE_CMAKE_MODULE_FILE}" "combine")
-	if (_targetScript)
-		list (APPEND _prefixCmd "${_targetScript}")
+function (cotire_setup_multi_prefix_generation_command _language _target _targetSourceDir _targetScript _prefixFile _unityFiles _cmdsVar)
+	set (_sourceFiles ${ARGN})
+	list (LENGTH _unityFiles _numberOfUnityFiles)
+	if (_numberOfUnityFiles GREATER 1)
+		set (_prefixFiles "")
+		foreach (_unityFile ${_unityFiles})
+			cotire_unity_to_prefix_file_path(${_language} ${_target} "${_unityFile}" _prefixFileSegment)
+			cotire_setup_single_prefix_generation_command(
+				${_language} ${_target} "${_targetSourceDir}" "${_targetScript}"
+				"${_prefixFileSegment}" "${_unityFile}" ${_cmdsVar} ${_sourceFiles})
+			list (APPEND _prefixFiles "${_prefixFileSegment}")
+		endforeach()
+		# create a joint prefix header file from all prefix header segments
+		cotire_setup_combine_command("${_targetSourceDir}" "${_targetScript}" "${_prefixFile}" ${_cmdsVar} ${_prefixFiles})
+	else()
+		cotire_setup_single_prefix_generation_command(
+			${_language} ${_target} "${_targetSourceDir}" "${_targetScript}"
+			"${_prefixFile}" "${_unityFiles}" ${_cmdsVar} ${_sourceFiles})
 	endif()
-	list (APPEND _prefixCmd "${_joinedFile}" ${_filesPaths})
-	if (COTIRE_DEBUG)
-		message (STATUS "add_custom_command: OUTPUT ${_joinedFile} COMMAND ${_prefixCmd} DEPENDS ${_files}")
-	endif()
-	set_property (SOURCE "${_joinedFile}" PROPERTY GENERATED TRUE)
-	file (RELATIVE_PATH _joinedFileRelPath "${CMAKE_BINARY_DIR}" "${_joinedFile}")
-	add_custom_command(
-		OUTPUT "${_joinedFile}"
-		COMMAND ${_prefixCmd}
-		DEPENDS ${_files}
-		COMMENT "Generating ${_joinedFileRelPath}"
-		WORKING_DIRECTORY "${_sourceDir}" VERBATIM)
-	list (APPEND ${_cmdsVar} COMMAND ${_prefixCmd})
 	set (${_cmdsVar} ${${_cmdsVar}} PARENT_SCOPE)
 endfunction()
 
@@ -2135,6 +2192,30 @@ function (cotire_choose_target_languages _targetSourceDir _target _targetLanguag
 	set (${_targetLanguagesVar} ${_targetLanguages} PARENT_SCOPE)
 endfunction()
 
+function (cotire_compute_unity_max_number_of_includes _target _maxIncludesVar)
+	set (_sourceFiles ${ARGN})
+	get_target_property(_maxIncludes ${_target} COTIRE_UNITY_SOURCE_MAXIMUM_NUMBER_OF_INCLUDES)
+	if (_maxIncludes MATCHES "(-j|--parallel) ?([0-9]*)")
+		set (_numberOfThreads "${CMAKE_MATCH_2}")
+		if (NOT _numberOfThreads)
+			# use all available cores
+			ProcessorCount(_numberOfThreads)
+		endif()
+		list (LENGTH _sourceFiles _numberOfSources)
+		math (EXPR _maxIncludes "(${_numberOfSources} + ${_numberOfThreads} - 1) / ${_numberOfThreads}")
+		# a unity source segment must not contain less than COTIRE_MINIMUM_NUMBER_OF_TARGET_SOURCES files
+		if (_maxIncludes LESS ${COTIRE_MINIMUM_NUMBER_OF_TARGET_SOURCES})
+			set (_maxIncludes ${COTIRE_MINIMUM_NUMBER_OF_TARGET_SOURCES})
+		endif()
+	elseif (NOT _maxIncludes MATCHES "[0-9]+")
+		set (_maxIncludes 0)
+	endif()
+	if (COTIRE_DEBUG)
+		message (STATUS "${_target} unity source max includes = ${_maxIncludes}")
+	endif()
+	set (${_maxIncludesVar} ${_maxIncludes} PARENT_SCOPE)
+endfunction()
+
 function (cotire_process_target_language _language _configurations _targetSourceDir _targetBinaryDir _target _wholeTargetVar _cmdsVar)
 	set (${_cmdsVar} "" PARENT_SCOPE)
 	get_target_property(_targetSourceFiles ${_target} SOURCES)
@@ -2154,10 +2235,7 @@ function (cotire_process_target_language _language _configurations _targetSource
 	endif()
 	cotire_generate_target_script(
 		${_language} "${_configurations}" "${_targetSourceDir}" "${_targetBinaryDir}" ${_target} _targetScript ${_unitySourceFiles})
-	get_target_property(_maxIncludes ${_target} COTIRE_UNITY_SOURCE_MAXIMUM_NUMBER_OF_INCLUDES)
-	if (NOT _maxIncludes)
-		set (_maxIncludes 0)
-	endif()
+	cotire_compute_unity_max_number_of_includes(${_target} _maxIncludes ${_unitySourceFiles})
 	cotire_make_unity_source_file_paths(${_language} ${_target} ${_maxIncludes} _unityFiles ${_unitySourceFiles})
 	if (NOT _unityFiles)
 		return()
@@ -2171,7 +2249,7 @@ function (cotire_process_target_language _language _configurations _targetSource
 		if (_prefixHeaderFiles)
 			cotire_setup_combine_command("${_targetSourceDir}" "${_targetScript}" "${_prefixFile}" _cmds ${_prefixHeaderFiles})
 		else()
-			cotire_setup_prefix_generation_command(
+			cotire_setup_multi_prefix_generation_command(
 				${_language} ${_target} "${_targetSourceDir}" "${_targetScript}" "${_prefixFile}" "${_unityFiles}" _cmds ${_unitySourceFiles})
 		endif()
 		get_target_property(_targetUsePCH ${_target} COTIRE_ENABLE_PRECOMPILED_HEADER)
@@ -2295,20 +2373,6 @@ function (cotire_setup_unity_build_target _languages _configurations _targetSour
 			endif()
 			# add unity source files instead
 			list (APPEND _unityTargetSources ${_unityFiles})
-			# make unity files use precompiled header if there are multiple unity files
-			list (LENGTH  _unityFiles _numberOfUnityFiles)
-			if (_targetUsePCH AND _numberOfUnityFiles GREATER ${COTIRE_MINIMUM_NUMBER_OF_TARGET_SOURCES})
-				get_property(_prefixFile TARGET ${_target} PROPERTY COTIRE_${_language}_PREFIX_HEADER)
-				get_property(_pchFile TARGET ${_target} PROPERTY COTIRE_${_language}_PRECOMPILED_HEADER)
-				if (_prefixFile AND _pchFile)
-					cotire_setup_pch_file_compilation(
-						${_language} "${_targetBinaryDir}" "" "${_prefixFile}" "${_pchFile}" ${_unityFiles})
-					cotire_setup_prefix_file_inclusion(
-						${_language} ${_target} FALSE "${_prefixFile}" "${_pchFile}" ${_unityFiles})
-					# add the prefix header to unity target sources
-					list (APPEND _unityTargetSources "${_prefixFile}")
-				endif()
-			endif()
 		endif()
 	endforeach()
 	if (COTIRE_DEBUG)
@@ -2756,7 +2820,17 @@ else()
 	set (COTIRE_MINIMUM_NUMBER_OF_TARGET_SOURCES "3" CACHE STRING
 		"Minimum number of sources in target required to enable use of precompiled header.")
 
-	set (COTIRE_MAXIMUM_NUMBER_OF_UNITY_INCLUDES "" CACHE STRING
+	if (NOT DEFINED COTIRE_MAXIMUM_NUMBER_OF_UNITY_INCLUDES_INIT)
+		if (DEFINED COTIRE_MAXIMUM_NUMBER_OF_UNITY_INCLUDES)
+			set (COTIRE_MAXIMUM_NUMBER_OF_UNITY_INCLUDES_INIT ${COTIRE_MAXIMUM_NUMBER_OF_UNITY_INCLUDES})
+		elseif ("${CMAKE_GENERATOR}" MATCHES "JOM|Ninja|Visual Studio")
+			# enable parallelization for generators that run multiple jobs by default
+			set (COTIRE_MAXIMUM_NUMBER_OF_UNITY_INCLUDES_INIT "-j")
+		else()
+			set (COTIRE_MAXIMUM_NUMBER_OF_UNITY_INCLUDES_INIT "0")
+		endif()
+	endif()
+	set (COTIRE_MAXIMUM_NUMBER_OF_UNITY_INCLUDES "${COTIRE_MAXIMUM_NUMBER_OF_UNITY_INCLUDES_INIT}" CACHE STRING
 		"Maximum number of source files to include in a single unity source file.")
 
 	if (NOT COTIRE_PREFIX_HEADER_FILENAME_SUFFIX)
@@ -2842,11 +2916,13 @@ else()
 		CACHED_VARIABLE PROPERTY "COTIRE_MAXIMUM_NUMBER_OF_UNITY_INCLUDES"
 		BRIEF_DOCS "Maximum number of source files to include in a single unity source file."
 		FULL_DOCS
-			"This may be set to an integer > 0."
+			"This may be set to an integer >= 0."
+			"If 0, cotire will only create a single unity source file."
 			"If a target contains more than that number of source files, cotire will create multiple unity source files for it."
-			"If not set, cotire will only create a single unity source file."
+			"Can be set to \"-j\" to optimize the count of unity source files for the number of available processor cores."
+			"Can be set to \"-j jobs\" to optimize the number of unity source files for the given number of simultaneous jobs."
 			"Is used to initialize the target property COTIRE_UNITY_SOURCE_MAXIMUM_NUMBER_OF_INCLUDES."
-			"Defaults to empty."
+			"Defaults to \"-j\" for the generators Visual Studio, JOM or Ninja. Defaults to 0 otherwise."
 	)
 
 	# define cotire directory properties

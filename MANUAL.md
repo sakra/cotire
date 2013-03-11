@@ -127,6 +127,9 @@ The unity source file uses absolute paths to include the target's source file. T
 intended to be portable across different build folders or machines. It is an intermediate file
 tied to the build folder that is automatically recreated by the build system if it is missing.
 
+For multi-core machines cotire can be configured to generate multiple unity file segments that
+can be built in parallel by the chosen CMake generator (see below).
+
 ### the prefix header
 
 The prefix header is produced from the unity source file by running the unity file through the
@@ -180,10 +183,12 @@ The generated prefix file includes the selected header files by their absolute p
 up the precompiling of the prefix header because the compiler does not have to search for header
 files in include directories again.
 
-The prefix header is tailored to the CMake target that it is generated for and cannot be re-used
-for a different CMake target. It is tied to the compiler environment of the local machine and
-is not portable across different compilers or machines. It is automatically recreated by the
-build system if it goes missing.
+The prefix header is tailored to the CMake target that it is generated for. It is tied to the
+compiler environment of the local machine and is not portable across different compilers or
+machines. It is automatically recreated by the build system if it goes missing.
+
+The generated prefix header can be applied to a different target added in the same source directory
+(see below).
 
 ### the precompiled header
 
@@ -226,11 +231,24 @@ the correct precompiled header depending on the compilation language of the sour
 For a cotired target the target properties `COTIRE_<LANG>_UNITY_SOURCE`,
 `COTIRE_<LANG>_PREFIX_HEADER`, `COTIRE_<LANG>_PRECOMPILED_HEADER` will be set to the paths of the
 generated files (`<LANG>` can be set to `CXX` or `C`). The target property
-`COTIRE_UNITY_TARGET_NAME` will be set to the name of the generated unity target.
+`COTIRE_UNITY_TARGET_NAME` will be set to the name of the generated unity target:
+
+    cotire(example)
+    ...
+    get_target_property(_unitySource example COTIRE_CXX_UNITY_SOURCE)
+    get_target_property(_prefixHeader example COTIRE_CXX_PREFIX_HEADER)
+    get_target_property(_precompiledHeader example COTIRE_CXX_PRECOMPILED_HEADER)
 
 If a source file's `COMPILE_FLAGS` are modified by cotire, it sets the source file property
 `COTIRE_TARGET` to the name of the target, that the source file's build command has been
-altered for.
+altered for:
+
+    cotire(example)
+    ...
+    get_source_file_property(_cotireTargetName "example.cpp" COTIRE_TARGET)
+    if (_cotireTargetName)
+        message(STATUS "example.cpp has been cotired for target ${_cotireTargetName}")
+    endif()
 
 ### changing the name of the generated unity build target
 
@@ -281,7 +299,10 @@ directories. A target inherits the property value from its enclosing directory.
 ### disabling precompiled headers for small targets
 
 The cache variable `COTIRE_MINIMUM_NUMBER_OF_TARGET_SOURCES` can be set to the minimum number of
-source files required to enable the use of a precompiled header. It defaults to 3.
+source files required to enable the use of a precompiled header. It defaults to 3. To override the
+default, run `cmake` with the following options:
+
+    $ cmake -D COTIRE_MINIMUM_NUMBER_OF_TARGET_SOURCES=5 <path-to-source>
 
 ### using a manually maintained prefix header instead of the automatically generated one
 
@@ -293,23 +314,25 @@ file. The path is interpreted relative to the target source directory:
     set_target_properties(example PROPERTIES COTIRE_CXX_PREFIX_HEADER_INIT "stdafx.h")
     cotire(example)
 
-The property can also be set to a list of header files which will then make up the contents of
-the generated prefix header.
-
 If the prefix header `stdafx.h` needs an accompanying source file (e.g., `stdafx.cpp`) in order
 to be pre-compiled properly, that source file needs to be the first one on the list of source
 files in the target's `add_executable` or `add_library` call.
 
+The property `COTIRE_CXX_PREFIX_HEADER_INIT` can also be set to a list of header files which will
+then make up the contents of the generated prefix header.
+
 ### using a generated prefix header for multiple targets
 
-A prefix header that is generated for a cotired target can be applied to a different target that
-has been added in the same source directory:
+A prefix header that is generated for a cotired target can be applied to a different target
+added in the same source directory:
 
     cotire(example)
     get_target_property(_prefixHeader example COTIRE_CXX_PREFIX_HEADER)
     ...
-    set_target_properties(example2 PROPERTIES COTIRE_CXX_PREFIX_HEADER_INIT "${_prefixHeader}")
-    cotire(example2)
+    set_target_properties(other_target PROPERTIES COTIRE_CXX_PREFIX_HEADER_INIT "${_prefixHeader}")
+    cotire(other_target)
+
+The compilation of either target will trigger the generation of the prefix header.
 
 ### configuring the generation of the prefix header
 
@@ -350,7 +373,9 @@ removed from a target source file). Cotire does not automatically recreate the p
 when a target source file is changed, because this would always trigger a re-compilation of the
 precompiled header and would result in a rebuild of the whole target. To make the prefix header
 creation dependent on changes to certain target source files, the source file property
-`COTIRE_DEPENDENCY` can be set to `TRUE` for those files.
+`COTIRE_DEPENDENCY` can be set to `TRUE` for those files:
+
+    set_property (SOURCE "example.cpp" PROPERTY COTIRE_DEPENDENCY "TRUE")
 
 ### fixing linkage issues
 
@@ -378,7 +403,7 @@ upon linking.
 
 ### using a manually maintained unity source instead of the automatically generated one
 
-cotire can be configured to use an existing manually maintained unity source file instead of the
+Cotire can be configured to use an existing manually maintained unity source file instead of the
 automatically generated one. Set the target property `COTIRE_CXX_UNITY_SOURCE_INIT` to the path
 of the existing unity source file. Its path is interpreted relative to the target source directory:
 
@@ -417,6 +442,25 @@ this property, it will complete the current unity file and start a new one. The 
 file will include the source file as the first one. This property essentially works as a separator
 for unity source files.
 
+### optimizing the build process for multiple processor cores
+
+To make use of all the machine's CPU cores for the unity compilation of a target, the target
+property `COTIRE_UNITY_SOURCE_MAXIMUM_NUMBER_OF_INCLUDES` can be set to the string `-j`. Cotire
+will then create as many unity file segments as there are CPU cores on the machine. Because
+the unity file segments do not depend on each other, a multi-core aware build process can compile
+the file segments in parallel.
+
+To explicitly specify the number of cores, append the number after `-j`, e.g. `-j 4` or `-j4`.
+
+For CMake generators that are multi-core aware by default (i.e., Visual Studio, JOM, Ninja) cotire
+will automatically initialize the property to `-j`. For makefile based generators, this has to be
+done explicitly by setting the cache variable `COTIRE_MAXIMUM_NUMBER_OF_UNITY_INCLUDES`, i.e.:
+
+    $ cmake -D COTIRE_MAXIMUM_NUMBER_OF_UNITY_INCLUDES=-j4 <path-to-source>
+    $ make -j 4
+
+The setting `-j` will also make the automatic prefix header generation run in parallel.
+
 ### fixing macro definition clashes
 
 Many unity build problems stem from macro definitions leaking into other target source files,
@@ -451,6 +495,22 @@ generating the cotire related files. Cotire will also print the contents of the 
 source and the prefix header for verbose builds. `COTIRE_VERBOSE` defaults to `FALSE`.
 When using a Makefile generator `COTIRE_VERBOSE` defaults to the value of the makefile variable
 `VERBOSE` (i.e., `make VERBOSE=1`).
+
+### conditionally loading cotire
+
+To make a `CMakeLists.txt` robust against a missing `cotire.cmake` module, the following strategy
+can be applied to using cotire:
+
+    include(cotire OPTIONAL)
+    ...
+    add_executable(example main.cpp example.cpp log.cpp log.h example.h)
+    ...
+    if (COMMAND cotire)
+        cotire(example)
+    endif()
+
+The `include(cotire OPTIONAL)` will prevent CMake from raising an error if cotire cannot be
+found. The actual calls to cotire need to be guarded by `if (COMMAND cotire)` blocks.
 
 ### using cotire with compiler wrappers
 
@@ -514,6 +574,10 @@ The Intel compiler may issue incorrect warnings #672 (the command line options d
 used when precompiled header was created) or #673 (the initial sequence of preprocessing directives
 is not compatible with those of precompiled header file) upon compilation of cotired targets.
 
+### IncrediBuild
+
+Cotire is not compatible with [Xoreax IncrediBuild][XGE].
+
 [1260]:http://www.cmake.org/Bug/view.php?id=1260
 [ccch]:http://ccache.samba.org/
 [clang_pch]:http://clang.llvm.org/docs/UsersManual.html#precompiledheaders
@@ -528,3 +592,4 @@ is not compatible with those of precompiled header file) upon compilation of cot
 [objlib]:http://www.cmake.org/cmake/help/cmake-2-8-docs.html#command:add_library
 [pfh]:http://en.wikipedia.org/wiki/Prefix_header
 [icc_linux]:http://software.intel.com/en-us/non-commercial-software-development
+[XGE]:http://www.incredibuild.com

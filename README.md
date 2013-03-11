@@ -18,7 +18,7 @@ features
 * Supports console (Makefile generator) and IDE (Visual Studio and Xcode) based builds.
 * Compatible with CMake single build type and CMake multi-configuration builds.
 * Compatible with most CMake generators (including [Ninja][ninja]).
-* Compatible with parallel builds (make -j, [jom][jom], Visual Studio, Xcode).
+* Supports multi-core unity builds for some generators (make -j, [jom][jom], Visual Studio, Ninja).
 * Leverages native precompiled header generation features of IDEs (Visual Studio and Xcode).
 * Compatible with CMake's [cross-compiling][ccrc] support.
 * Compatible with compiler wrappers like [ccache][ccch].
@@ -87,7 +87,8 @@ the original target, but does so much faster by entering:
     $ make MyExecutable_unity
 
 See the advanced usage section of the [cotire manual][manual] for information on how to
-configure the cotire process (e.g., how to apply cotire to a certain build configuration only).
+configure the cotire process (e.g., how to make the unity build use all available processor
+cores).
 
 The directory `Patches` contains patch files to enable cotire for some popular open sources
 packages that use CMake as a build system.

@@ -1,3 +1,10 @@
+## 1.4.0 (2013-03-11)
+
+* one year anniversary release.
+* add support for multi-core optimized unity builds for some CMake generators.
+* add support for multi-core optimized prefix header generation.
+* add more examples to cotire manual.
+
 ## 1.3.6 (2013-03-06)
 
 * fix bug with prefix header initialization for generator Xcode.
