@@ -45,36 +45,32 @@ if (NOT CMAKE_SCRIPT_MODE_FILE)
 endif()
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.4.0")
+set (COTIRE_CMAKE_MODULE_VERSION "1.4.1")
 
 include(CMakeParseArguments)
 include(ProcessorCount)
 
 function (cotire_determine_compiler_version _language _versionPrefix)
 	if (NOT ${_versionPrefix}_VERSION)
-		if (MSVC)
-			# use CMake's predefined version variable for MSVC, if available
-			if (DEFINED MSVC_VERSION)
-				set (${_versionPrefix}_VERSION "${MSVC_VERSION}")
-			else()
-				# cl.exe messes with the output streams unless the environment variable VS_UNICODE_OUTPUT is cleared
-				unset (ENV{VS_UNICODE_OUTPUT})
-				string (STRIP "${CMAKE_${_language}_COMPILER_ARG1}" _compilerArg1)
-				execute_process (COMMAND ${CMAKE_${_language}_COMPILER} ${_compilerArg1}
-					ERROR_VARIABLE _versionLine OUTPUT_QUIET TIMEOUT 10)
-				string (REGEX REPLACE ".*Version *([0-9]+(\\.[0-9]+)*).*" "\\1"
-					${_versionPrefix}_VERSION "${_versionLine}")
-			endif()
+		# use CMake's predefined compiler version variable (available since CMake 2.8.8)
+		if (DEFINED CMAKE_${_language}_COMPILER_VERSION)
+			set (${_versionPrefix}_VERSION "${CMAKE_${_language}_COMPILER_VERSION}")
+		elseif (WIN32)
+			# cl.exe messes with the output streams unless the environment variable VS_UNICODE_OUTPUT is cleared
+			unset (ENV{VS_UNICODE_OUTPUT})
+			string (STRIP "${CMAKE_${_language}_COMPILER_ARG1}" _compilerArg1)
+			execute_process (COMMAND ${CMAKE_${_language}_COMPILER} ${_compilerArg1}
+				ERROR_VARIABLE _versionLine OUTPUT_QUIET TIMEOUT 10)
+			string (REGEX REPLACE ".*Version *([0-9]+(\\.[0-9]+)*).*" "\\1" ${_versionPrefix}_VERSION "${_versionLine}")
 		else()
-			# use CMake's predefined compiler version variable (available since CMake 2.8.8)
-			if (DEFINED CMAKE_${_language}_COMPILER_VERSION)
-				set (${_versionPrefix}_VERSION "${CMAKE_${_language}_COMPILER_VERSION}")
-			else()
-				# assume GCC like command line interface
-				string (STRIP "${CMAKE_${_language}_COMPILER_ARG1}" _compilerArg1)
-				execute_process (COMMAND ${CMAKE_${_language}_COMPILER} ${_compilerArg1} "-dumpversion"
-					OUTPUT_VARIABLE ${_versionPrefix}_VERSION
-					OUTPUT_STRIP_TRAILING_WHITESPACE TIMEOUT 10)
+			# assume GCC like command line interface
+			string (STRIP "${CMAKE_${_language}_COMPILER_ARG1}" _compilerArg1)
+			execute_process (COMMAND ${CMAKE_${_language}_COMPILER} ${_compilerArg1} "-dumpversion"
+				OUTPUT_VARIABLE ${_versionPrefix}_VERSION
+				RESULT_VARIABLE _result
+				OUTPUT_STRIP_TRAILING_WHITESPACE TIMEOUT 10)
+			if (_result)
+				set (${_versionPrefix}_VERSION "")
 			endif()
 		endif()
 		if (${_versionPrefix}_VERSION)
@@ -398,7 +394,7 @@ function (cotire_get_target_compile_flags _config _language _directory _target _
 	set (${_flagsVar} ${_compileFlags} PARENT_SCOPE)
 endfunction()
 
-function (cotire_get_target_include_directories _config _language _targetSourceDir _targetBinaryDir _target  _includeDirsVar)
+function (cotire_get_target_include_directories _config _language _targetSourceDir _targetBinaryDir _target _includeDirsVar)
 	set (_includeDirs "")
 	# default include dirs
 	if (CMAKE_INCLUDE_CURRENT_DIR)
@@ -1848,7 +1844,7 @@ function (cotire_get_first_set_property_value _propertyValueVar _type _object)
 	set (${_propertyValueVar} "" PARENT_SCOPE)
 endfunction()
 
-function (cotire_setup_combine_command _sourceDir _targetScript _joinedFile _cmdsVar)
+function (cotire_setup_combine_command _language _sourceDir _targetScript _joinedFile _cmdsVar)
 	set (_files ${ARGN})
 	set (_filesPaths "")
 	foreach (_file ${_files})
@@ -1875,11 +1871,19 @@ function (cotire_setup_combine_command _sourceDir _targetScript _joinedFile _cmd
 	endif()
 	set_property (SOURCE "${_joinedFile}" PROPERTY GENERATED TRUE)
 	file (RELATIVE_PATH _joinedFileRelPath "${CMAKE_BINARY_DIR}" "${_joinedFile}")
+	get_filename_component(_joinedFileName "${_joinedFileRelPath}" NAME_WE)
+	if (_language AND _joinedFileName MATCHES "${COTIRE_UNITY_SOURCE_FILENAME_SUFFIX}$")
+		set (_comment "Generating ${_language} unity source ${_joinedFileRelPath}")
+	elseif (_language AND _joinedFileName MATCHES "${COTIRE_UNITY_SOURCE_FILENAME_SUFFIX}$")
+		set (_comment "Generating ${_language} prefix header ${_joinedFileRelPath}")
+	else()
+		set (_comment "Generating ${_joinedFileRelPath}")
+	endif()
 	add_custom_command(
 		OUTPUT "${_joinedFile}"
 		COMMAND ${_prefixCmd}
 		DEPENDS ${_files}
-		COMMENT "Generating ${_joinedFileRelPath}"
+		COMMENT "${_comment}"
 		WORKING_DIRECTORY "${_sourceDir}" VERBATIM)
 	list (APPEND ${_cmdsVar} COMMAND ${_prefixCmd})
 	set (${_cmdsVar} ${${_cmdsVar}} PARENT_SCOPE)
@@ -1900,7 +1904,7 @@ function (cotire_setup_target_pch_usage _languages _targetSourceDir _target _who
 		list (LENGTH _prefixFiles _numberOfPrefixFiles)
 		if (_numberOfPrefixFiles GREATER 1)
 			cotire_make_prefix_file_path("" ${_target} _prefixHeader)
-			cotire_setup_combine_command("${_targetSourceDir}" "" "${_prefixHeader}" _cmds ${_prefixFiles})
+			cotire_setup_combine_command("" "${_targetSourceDir}" "" "${_prefixHeader}" _cmds ${_prefixFiles})
 		else()
 			set (_prefixHeader "${_prefixFiles}")
 		endif()
@@ -1970,7 +1974,7 @@ function (cotire_setup_unity_generation_commands _language _targetSourceDir _tar
 	if (_numberOfUnityFiles GREATER 1)
 		# create a joint unity file from all unity file segments
 		cotire_make_single_unity_source_file_path(${_language} ${_target} _unityFile)
-		cotire_setup_combine_command("${_targetSourceDir}" "${_targetScript}" "${_unityFile}" ${_cmdsVar} ${_unityFiles})
+		cotire_setup_combine_command(${_language} "${_targetSourceDir}" "${_targetScript}" "${_unityFile}" ${_cmdsVar} ${_unityFiles})
 	endif()
 	set (${_cmdsVar} ${${_cmdsVar}} PARENT_SCOPE)
 endfunction()
@@ -2000,16 +2004,10 @@ function (cotire_setup_multi_prefix_generation_command _language _target _target
 	set (_sourceFiles ${ARGN})
 	list (LENGTH _unityFiles _numberOfUnityFiles)
 	if (_numberOfUnityFiles GREATER 1)
-		set (_prefixFiles "")
-		foreach (_unityFile ${_unityFiles})
-			cotire_unity_to_prefix_file_path(${_language} ${_target} "${_unityFile}" _prefixFileSegment)
-			cotire_setup_single_prefix_generation_command(
-				${_language} ${_target} "${_targetSourceDir}" "${_targetScript}"
-				"${_prefixFileSegment}" "${_unityFile}" ${_cmdsVar} ${_sourceFiles})
-			list (APPEND _prefixFiles "${_prefixFileSegment}")
-		endforeach()
-		# create a joint prefix header file from all prefix header segments
-		cotire_setup_combine_command("${_targetSourceDir}" "${_targetScript}" "${_prefixFile}" ${_cmdsVar} ${_prefixFiles})
+		cotire_make_single_unity_source_file_path(${_language} ${_target} _unityFile)
+		cotire_setup_single_prefix_generation_command(
+			${_language} ${_target} "${_targetSourceDir}" "${_targetScript}"
+			"${_prefixFile}" "${_unityFile}" ${_cmdsVar} ${_sourceFiles})
 	else()
 		cotire_setup_single_prefix_generation_command(
 			${_language} ${_target} "${_targetSourceDir}" "${_targetScript}"
@@ -2195,7 +2193,7 @@ endfunction()
 function (cotire_compute_unity_max_number_of_includes _target _maxIncludesVar)
 	set (_sourceFiles ${ARGN})
 	get_target_property(_maxIncludes ${_target} COTIRE_UNITY_SOURCE_MAXIMUM_NUMBER_OF_INCLUDES)
-	if (_maxIncludes MATCHES "(-j|--parallel) ?([0-9]*)")
+	if (_maxIncludes MATCHES "(-j|--parallel|--jobs) ?([0-9]*)")
 		set (_numberOfThreads "${CMAKE_MATCH_2}")
 		if (NOT _numberOfThreads)
 			# use all available cores
@@ -2223,7 +2221,7 @@ function (cotire_process_target_language _language _configurations _targetSource
 	set (_excludedSources "")
 	set (_cotiredSources "")
 	cotire_filter_language_source_files(${_language} _sourceFiles _excludedSources _cotiredSources ${_targetSourceFiles})
-	if (NOT _sourceFiles)
+	if (NOT _sourceFiles AND NOT _cotiredSources)
 		return()
 	endif()
 	set (_wholeTarget ${${_wholeTargetVar}})
@@ -2247,7 +2245,7 @@ function (cotire_process_target_language _language _configurations _targetSource
 		# check for user provided prefix header files
 		get_property(_prefixHeaderFiles TARGET ${_target} PROPERTY COTIRE_${_language}_PREFIX_HEADER_INIT)
 		if (_prefixHeaderFiles)
-			cotire_setup_combine_command("${_targetSourceDir}" "${_targetScript}" "${_prefixFile}" _cmds ${_prefixHeaderFiles})
+			cotire_setup_combine_command(${_language} "${_targetSourceDir}" "${_targetScript}" "${_prefixFile}" _cmds ${_prefixHeaderFiles})
 		else()
 			cotire_setup_multi_prefix_generation_command(
 				${_language} ${_target} "${_targetSourceDir}" "${_targetScript}" "${_prefixFile}" "${_unityFiles}" _cmds ${_unitySourceFiles})
@@ -2343,7 +2341,6 @@ function (cotire_setup_unity_build_target _languages _configurations _targetSour
 	# determine unity target sources
 	get_target_property(_targetSourceFiles ${_target} SOURCES)
 	set (_unityTargetSources ${_targetSourceFiles})
-	get_target_property(_targetUsePCH ${_target} COTIRE_ENABLE_PRECOMPILED_HEADER)
 	foreach (_language ${_languages})
 		get_property(_unityFiles TARGET ${_target} PROPERTY COTIRE_${_language}_UNITY_SOURCE)
 		if (_unityFiles)

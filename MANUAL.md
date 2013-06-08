@@ -459,8 +459,6 @@ done explicitly by setting the cache variable `COTIRE_MAXIMUM_NUMBER_OF_UNITY_IN
     $ cmake -D COTIRE_MAXIMUM_NUMBER_OF_UNITY_INCLUDES=-j4 <path-to-source>
     $ make -j 4
 
-The setting `-j` will also make the automatic prefix header generation run in parallel.
-
 ### fixing macro definition clashes
 
 Many unity build problems stem from macro definitions leaking into other target source files,

@@ -1,3 +1,9 @@
+## 1.4.1 (2013-06-08)
+
+* fixed bug with determination of compiler version.
+* fixed bug with generation of unity source when target source files are used for multiple targets.
+* fixed bug with multi-core optimized prefix header generation.
+
 ## 1.4.0 (2013-03-11)
 
 * one year anniversary release.
