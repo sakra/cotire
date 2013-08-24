@@ -321,6 +321,9 @@ files in the target's `add_executable` or `add_library` call.
 The property `COTIRE_CXX_PREFIX_HEADER_INIT` can also be set to a list of header files which will
 then make up the contents of the generated prefix header.
 
+A manually maintained prefix header will always be applied to the corresponding target,
+even if the target contains too few sources to enable the use of a precompiled header.
+
 ### using a generated prefix header for multiple targets
 
 A prefix header that is generated for a cotired target can be applied to a different target

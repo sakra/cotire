@@ -1,3 +1,9 @@
+## 1.4.2 (2013-08-24)
+
+* CMake 2.8.11 compatibility fixes.
+* always force the inclusion of a user provided prefix header, even if the target
+  contains too few sources to enable the use of a precompiled header.
+
 ## 1.4.1 (2013-06-08)
 
 * fixed bug with determination of compiler version.

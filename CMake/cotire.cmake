@@ -45,7 +45,7 @@ if (NOT CMAKE_SCRIPT_MODE_FILE)
 endif()
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.4.1")
+set (COTIRE_CMAKE_MODULE_VERSION "1.4.2")
 
 include(CMakeParseArguments)
 include(ProcessorCount)
@@ -1334,21 +1334,32 @@ function (cotire_add_pch_compilation_flags _language _compilerID _compilerVersio
 	set (${_flagsVar} ${_flags} PARENT_SCOPE)
 endfunction()
 
-function (cotire_add_pch_inclusion_flags _language _compilerID _compilerVersion _prefixFile _pchFile _flagsVar)
+function (cotire_add_prefix_pch_inclusion_flags _language _compilerID _compilerVersion _prefixFile _pchFile _flagsVar)
 	set (_flags ${${_flagsVar}})
 	if (_compilerID MATCHES "MSVC")
 		file (TO_NATIVE_PATH "${_prefixFile}" _prefixFileNative)
-		file (TO_NATIVE_PATH "${_pchFile}" _pchFileNative)
 		# cl.exe options used
 		# /Yu uses a precompiled header file during build
 		# /Fp specifies precompiled header binary file name
 		# /FI forces inclusion of file
-		if (_flags)
-			# append to list
-			list (APPEND _flags "/Yu${_prefixFileNative}" "/Fp${_pchFileNative}" "/FI${_prefixFileNative}")
+		if (_pchFile)
+			file (TO_NATIVE_PATH "${_pchFile}" _pchFileNative)
+			if (_flags)
+				# append to list
+				list (APPEND _flags "/Yu${_prefixFileNative}" "/Fp${_pchFileNative}" "/FI${_prefixFileNative}")
+			else()
+				# return as a flag string
+				set (_flags "/Yu\"${_prefixFileNative}\" /Fp\"${_pchFileNative}\" /FI\"${_prefixFileNative}\"")
+			endif()
 		else()
-			# return as a flag string
-			set (_flags "/Yu\"${_prefixFileNative}\" /Fp\"${_pchFileNative}\" /FI\"${_prefixFileNative}\"")
+			# no precompiled header, force inclusion of prefix header
+			if (_flags)
+				# append to list
+				list (APPEND _flags "/FI${_prefixFileNative}")
+			else()
+				# return as a flag string
+				set (_flags "/FI\"${_prefixFileNative}\"")
+			endif()
 		endif()
 	elseif (_compilerID MATCHES "GNU")
 		# GCC options used
@@ -1375,23 +1386,34 @@ function (cotire_add_pch_inclusion_flags _language _compilerID _compilerVersion 
 	elseif (_compilerID MATCHES "Intel")
 		if (WIN32)
 			file (TO_NATIVE_PATH "${_prefixFile}" _prefixFileNative)
-			file (TO_NATIVE_PATH "${_pchFile}" _pchFileNative)
 			# Windows Intel options used
 			# /Yu use a precompiled header (PCH) file
 			# /Fp specify a path or file name for precompiled header files
 			# /FI tells the preprocessor to include a specified file name as the header file
 			# /Wpch-messages enable diagnostics related to pre-compiled headers (requires Intel XE 2013 Update 2)
-			if (_flags)
-				# append to list
-				list (APPEND _flags "/Yu" "/Fp${_pchFileNative}" "/FI${_prefixFileNative}")
-				if (NOT "${_compilerVersion}" VERSION_LESS "13.1.0")
-					list (APPEND _flags "/Wpch-messages")
+			if (_pchFile)
+				file (TO_NATIVE_PATH "${_pchFile}" _pchFileNative)
+				if (_flags)
+					# append to list
+					list (APPEND _flags "/Yu" "/Fp${_pchFileNative}" "/FI${_prefixFileNative}")
+					if (NOT "${_compilerVersion}" VERSION_LESS "13.1.0")
+						list (APPEND _flags "/Wpch-messages")
+					endif()
+				else()
+					# return as a flag string
+					set (_flags "/Yu /Fp\"${_pchFileNative}\" /FI\"${_prefixFileNative}\"")
+					if (NOT "${_compilerVersion}" VERSION_LESS "13.1.0")
+						set (_flags "${_flags} /Wpch-messages")
+					endif()
 				endif()
 			else()
-				# return as a flag string
-				set (_flags "/Yu /Fp\"${_pchFileNative}\" /FI\"${_prefixFileNative}\"")
-				if (NOT "${_compilerVersion}" VERSION_LESS "13.1.0")
-					set (_flags "${_flags} /Wpch-messages")
+				# no precompiled header, force inclusion of prefix header
+				if (_flags)
+					# append to list
+					list (APPEND _flags "/FI${_prefixFileNative}")
+				else()
+					# return as a flag string
+					set (_flags "/FI\"${_prefixFileNative}\"")
 				endif()
 			endif()
 		else()
@@ -1400,19 +1422,30 @@ function (cotire_add_pch_inclusion_flags _language _compilerID _compilerVersion 
 			# -pch-use name of the precompiled header (PCH) to use
 			# -include process include file as the first line of the primary source file
 			# -Wpch-messages enable diagnostics related to pre-compiled headers (requires Intel XE 2013 Update 2)
-			get_filename_component(_pchDir "${_pchFile}" PATH)
-			get_filename_component(_pchName "${_pchFile}" NAME)
-			if (_flags)
-				# append to list
-				list (APPEND _flags "-include" "${_prefixFile}" "-pch-dir" "${_pchDir}" "-pch-use" "${_pchName}")
-				if (NOT "${_compilerVersion}" VERSION_LESS "13.1.0")
-					list (APPEND _flags "-Wpch-messages")
+			if (_pchFile)
+				get_filename_component(_pchDir "${_pchFile}" PATH)
+				get_filename_component(_pchName "${_pchFile}" NAME)
+				if (_flags)
+					# append to list
+					list (APPEND _flags "-include" "${_prefixFile}" "-pch-dir" "${_pchDir}" "-pch-use" "${_pchName}")
+					if (NOT "${_compilerVersion}" VERSION_LESS "13.1.0")
+						list (APPEND _flags "-Wpch-messages")
+					endif()
+				else()
+					# return as a flag string
+					set (_flags "-include \"${_prefixFile}\" -pch-dir \"${_pchDir}\" -pch-use \"${_pchName}\"")
+					if (NOT "${_compilerVersion}" VERSION_LESS "13.1.0")
+						set (_flags "${_flags} -Wpch-messages")
+					endif()
 				endif()
 			else()
-				# return as a flag string
-				set (_flags "-include \"${_prefixFile}\" -pch-dir \"${_pchDir}\" -pch-use \"${_pchName}\"")
-				if (NOT "${_compilerVersion}" VERSION_LESS "13.1.0")
-					set (_flags "${_flags} -Wpch-messages")
+				# no precompiled header, force inclusion of prefix header
+				if (_flags)
+					# append to list
+					list (APPEND _flags "-include" "${_prefixFile}")
+				else()
+					# return as a flag string
+					set (_flags "-include \"${_prefixFile}\"")
 				endif()
 			endif()
 		endif()
@@ -1759,7 +1792,7 @@ function (cotire_setup_pch_file_compilation _language _targetBinaryDir _targetSc
 	set (_sourceFiles ${ARGN})
 	if (CMAKE_${_language}_COMPILER_ID MATCHES "MSVC|Intel")
 		# for Visual Studio and Intel, we attach the precompiled header compilation to the first source file
-		# the remaining files include the precompiled header, see cotire_setup_prefix_file_inclusion
+		# the remaining files include the precompiled header, see cotire_setup_pch_file_inclusion
 		if (_sourceFiles)
 			file (TO_NATIVE_PATH "${_prefixFile}" _prefixFileNative)
 			file (TO_NATIVE_PATH "${_pchFile}" _pchFileNative)
@@ -1795,7 +1828,7 @@ function (cotire_setup_pch_file_compilation _language _targetBinaryDir _targetSc
 	endif()
 endfunction()
 
-function (cotire_setup_prefix_file_inclusion _language _target _wholeTarget _prefixFile _pchFile)
+function (cotire_setup_pch_file_inclusion _language _target _wholeTarget _prefixFile _pchFile)
 	set (_sourceFiles ${ARGN})
 	if (CMAKE_${_language}_COMPILER_ID MATCHES "MSVC|Intel")
 		# for Visual Studio and Intel, we include the precompiled header in all but the first source file
@@ -1807,7 +1840,7 @@ function (cotire_setup_prefix_file_inclusion _language _target _wholeTarget _pre
 			list (REMOVE_AT _sourceFiles 0)
 			set (_flags "")
 			cotire_determine_compiler_version("${_language}" COTIRE_${_language}_COMPILER)
-			cotire_add_pch_inclusion_flags(
+			cotire_add_prefix_pch_inclusion_flags(
 				"${_language}" "${CMAKE_${_language}_COMPILER_ID}" "${COTIRE_${_language}_COMPILER_VERSION}"
 				"${_prefixFile}" "${_pchFile}" _flags)
 			set_property (SOURCE ${_sourceFiles} APPEND_STRING PROPERTY COMPILE_FLAGS " ${_flags} ")
@@ -1820,7 +1853,7 @@ function (cotire_setup_prefix_file_inclusion _language _target _wholeTarget _pre
 			# of the source files, if this is a multi-language target or has excluded files
 			set (_flags "")
 			cotire_determine_compiler_version("${_language}" COTIRE_${_language}_COMPILER)
-			cotire_add_pch_inclusion_flags(
+			cotire_add_prefix_pch_inclusion_flags(
 				"${_language}" "${CMAKE_${_language}_COMPILER_ID}" "${COTIRE_${_language}_COMPILER_VERSION}"
 				"${_prefixFile}" "${_pchFile}" _flags)
 			set_property (SOURCE ${_sourceFiles} APPEND_STRING PROPERTY COMPILE_FLAGS " ${_flags} ")
@@ -1830,6 +1863,21 @@ function (cotire_setup_prefix_file_inclusion _language _target _wholeTarget _pre
 		# make source files depend on precompiled header
 		set_property (SOURCE ${_sourceFiles} APPEND PROPERTY OBJECT_DEPENDS "${_pchFile}")
 	endif()
+endfunction()
+
+function (cotire_setup_prefix_file_inclusion _language _target _prefixFile)
+	set (_sourceFiles ${ARGN})
+	# force the inclusion of the prefix header for the given source files
+	set (_flags "")
+	cotire_determine_compiler_version("${_language}" COTIRE_${_language}_COMPILER)
+	cotire_add_prefix_pch_inclusion_flags(
+		"${_language}" "${CMAKE_${_language}_COMPILER_ID}" "${COTIRE_${_language}_COMPILER_VERSION}"
+		"${_prefixFile}" "" _flags)
+	set_property (SOURCE ${_sourceFiles} APPEND_STRING PROPERTY COMPILE_FLAGS " ${_flags} ")
+	# mark sources as cotired to prevent them from being used in another cotired target
+	set_source_files_properties(${_sourceFiles} PROPERTIES COTIRE_TARGET "${_target}")
+	# make source files depend on prefix header
+	set_property (SOURCE ${_sourceFiles} APPEND PROPERTY OBJECT_DEPENDS "${_prefixFile}")
 endfunction()
 
 function (cotire_get_first_set_property_value _propertyValueVar _type _object)
@@ -1924,13 +1972,13 @@ function (cotire_setup_target_pch_usage _languages _targetSourceDir _target _who
 		if (_wholeTarget)
 			set (_language "${_languages}")
 			# for Visual Studio and Intel, precompiled header inclusion is always done on the source file level
-			# see cotire_setup_prefix_file_inclusion
+			# see cotire_setup_pch_file_inclusion
 			if (NOT CMAKE_${_language}_COMPILER_ID MATCHES "MSVC|Intel")
 				get_property(_prefixFile TARGET ${_target} PROPERTY COTIRE_${_language}_PREFIX_HEADER)
 				get_property(_pchFile TARGET ${_target} PROPERTY COTIRE_${_language}_PRECOMPILED_HEADER)
 				set (_flags "")
 				cotire_determine_compiler_version("${_language}" COTIRE_${_language}_COMPILER)
-				cotire_add_pch_inclusion_flags(
+				cotire_add_prefix_pch_inclusion_flags(
 					"${_language}" "${CMAKE_${_language}_COMPILER_ID}" "${COTIRE_${_language}_COMPILER_VERSION}"
 					"${_prefixFile}" "${_pchFile}" _flags)
 				set_property (TARGET ${_target} APPEND_STRING PROPERTY COMPILE_FLAGS " ${_flags} ")
@@ -2259,9 +2307,13 @@ function (cotire_process_target_language _language _configurations _targetSource
 				if (_excludedSources)
 					set (_wholeTarget FALSE)
 				endif()
-				cotire_setup_prefix_file_inclusion(
+				cotire_setup_pch_file_inclusion(
 					${_language} ${_target} ${_wholeTarget} "${_prefixFile}" "${_pchFile}" ${_sourceFiles})
 			endif()
+		elseif (_prefixHeaderFiles)
+			# user provided prefix header must be included
+			cotire_setup_prefix_file_inclusion(
+				${_language} ${_target} "${_prefixFile}" ${_sourceFiles})
 		endif()
 	endif()
 	# mark target as cotired for language
@@ -2431,7 +2483,7 @@ function (cotire_setup_unity_build_target _languages _configurations _targetSour
 	# copy link stuff
 	cotrie_copy_set_properites("${_configurations}" TARGET ${_target} ${_unityTargetName}
 		BUILD_WITH_INSTALL_RPATH INSTALL_RPATH INSTALL_RPATH_USE_LINK_PATH SKIP_BUILD_RPATH
-		LINKER_LANGUAGE LINK_DEPENDS
+		LINKER_LANGUAGE LINK_DEPENDS LINK_DEPENDS_NO_SHARED
 		LINK_FLAGS LINK_FLAGS_<CONFIG>
 		LINK_INTERFACE_LIBRARIES LINK_INTERFACE_LIBRARIES_<CONFIG>
 		LINK_INTERFACE_MULTIPLICITY LINK_INTERFACE_MULTIPLICITY_<CONFIG>
