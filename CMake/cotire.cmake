@@ -45,7 +45,7 @@ if (NOT CMAKE_SCRIPT_MODE_FILE)
 endif()
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.4.2")
+set (COTIRE_CMAKE_MODULE_VERSION "1.4.3")
 
 include(CMakeParseArguments)
 include(ProcessorCount)
@@ -167,7 +167,7 @@ function (cotire_filter_language_source_files _language _sourceFilesVar _exclude
 			get_source_file_property(_sourceIsCotired "${_sourceFile}" COTIRE_TARGET)
 			get_source_file_property(_sourceCompileFlags "${_sourceFile}" COMPILE_FLAGS)
 			if (COTIRE_DEBUG)
-				message (STATUS "${_sourceFile} excluded=${_sourceIsExcluded} cotired=${_sourceIsCotired}")
+				message (STATUS "${_sourceFile} excluded=${_sourceIsExcluded} cotired=${_sourceIsCotired} compileFlags=${_sourceCompileFlags}")
 			endif()
 			if (_sourceIsCotired)
 				list (APPEND _cotiredSourceFiles "${_sourceFile}")
@@ -1788,7 +1788,7 @@ function (cotire_generate_target_script _language _configurations _targetSourceD
 	set (${_targetScriptVar} "${_targetCotireScript}" PARENT_SCOPE)
 endfunction()
 
-function (cotire_setup_pch_file_compilation _language _targetBinaryDir _targetScript _prefixFile _pchFile)
+function (cotire_setup_pch_file_compilation _language _target _targetSourceDir _targetScript _prefixFile _pchFile)
 	set (_sourceFiles ${ARGN})
 	if (CMAKE_${_language}_COMPILER_ID MATCHES "MSVC|Intel")
 		# for Visual Studio and Intel, we attach the precompiled header compilation to the first source file
@@ -1806,6 +1806,8 @@ function (cotire_setup_pch_file_compilation _language _targetBinaryDir _targetSc
 			set_property (SOURCE ${_hostFile} APPEND PROPERTY OBJECT_OUTPUTS "${_pchFile}")
 			# make first source file depend on prefix header
 			set_property (SOURCE ${_hostFile} APPEND PROPERTY OBJECT_DEPENDS "${_prefixFile}")
+			# mark first source file as cotired to prevent it from being used in another cotired target
+			set_property (SOURCE ${_hostFile} PROPERTY COTIRE_TARGET "${_target}")
 		endif()
 	elseif ("${CMAKE_GENERATOR}" MATCHES "Makefiles|Ninja")
 		# for makefile based generator, we add a custom command to precompile the prefix header
@@ -2303,7 +2305,7 @@ function (cotire_process_target_language _language _configurations _targetSource
 			cotire_make_pch_file_path(${_language} "${_targetSourceDir}" ${_target} _pchFile)
 			if (_pchFile)
 				cotire_setup_pch_file_compilation(
-					${_language} "${_targetBinaryDir}" "${_targetScript}" "${_prefixFile}" "${_pchFile}" ${_sourceFiles})
+					${_language} ${_target} "${_targetSourceDir}" "${_targetScript}" "${_prefixFile}" "${_pchFile}" ${_sourceFiles})
 				if (_excludedSources)
 					set (_wholeTarget FALSE)
 				endif()

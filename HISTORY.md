@@ -1,3 +1,8 @@
+## 1.4.3 (2013-09-28)
+
+* fixed bug with generation of unity source file when `COTIRE_MINIMUM_NUMBER_OF_TARGET_SOURCES` is
+  set to 0.
+
 ## 1.4.2 (2013-08-24)
 
 * CMake 2.8.11 compatibility fixes.
