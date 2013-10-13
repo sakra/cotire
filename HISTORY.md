@@ -1,3 +1,14 @@
+## 1.5.0 (2013-10-13)
+
+* CMake 2.8.12 compatibility fixes.
+* Upon generation of a unity target, cotire can now be configured to automatically copy all the
+  linked libraries and targets from the original target. See the section on the new target property
+  `COTIRE_UNITY_LINK_LIBRARIES_INIT` in the cotire manual.
+* fixed bug with copying target properties to generated unity target.
+* cotire manual updates.
+* add new examples to the `Patches` directory.
+* fix typos.
+
 ## 1.4.3 (2013-09-28)
 
 * fixed bug with generation of unity source file when `COTIRE_MINIMUM_NUMBER_OF_TARGET_SOURCES` is

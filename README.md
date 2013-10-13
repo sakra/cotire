@@ -81,6 +81,14 @@ target, add another `target_link_libraries` call:
     cotire(MyExecutable)
     target_link_libraries(MyExecutable_unity ${MyExecutableLibraries})
 
+If CMake version 2.8.11 or later is used, it is possible to also inherit linked libraries from
+the original target by setting the property `COTIRE_UNITY_LINK_LIBRARIES_INIT`:
+
+    set_target_properties(MyExecutable PROPERTIES COTIRE_UNITY_LINK_LIBRARIES_INIT "COPY")
+    cotire(MyExecutable)
+
+See the [cotire manual][manual] for more information.
+
 For Makefile based generators you can then invoke a unity build that produces the same output as
 the original target, but does so much faster by entering:
 
