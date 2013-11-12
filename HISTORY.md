@@ -1,3 +1,7 @@
+## 1.5.1 (2013-11-12)
+
+* fixed string quoting bugs.
+
 ## 1.5.0 (2013-10-13)
 
 * CMake 2.8.12 compatibility fixes.
