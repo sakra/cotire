@@ -3,7 +3,7 @@
 # See the cotire manual for usage hints.
 #
 #=============================================================================
-# Copyright 2012-2013 Sascha Kratky
+# Copyright 2012-2014 Sascha Kratky
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
@@ -45,7 +45,7 @@ if (NOT CMAKE_SCRIPT_MODE_FILE)
 endif()
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.5.1")
+set (COTIRE_CMAKE_MODULE_VERSION "1.5.2")
 
 include(CMakeParseArguments)
 include(ProcessorCount)
@@ -383,13 +383,19 @@ function (cotire_get_target_compile_flags _config _language _directory _target _
 		foreach (_arch ${_architectures})
 			list (APPEND _compileFlags "-arch" "${_arch}")
 		endforeach()
-		if (CMAKE_OSX_SYSROOT AND CMAKE_OSX_SYSROOT_DEFAULT AND CMAKE_${_language}_HAS_ISYSROOT)
-			if (NOT "${CMAKE_OSX_SYSROOT}" STREQUAL "${CMAKE_OSX_SYSROOT_DEFAULT}")
+		if (CMAKE_OSX_SYSROOT)
+			if (CMAKE_${_language}_SYSROOT_FLAG)
+				list (APPEND _compileFlags "${CMAKE_${_language}_SYSROOT_FLAG}" "${CMAKE_OSX_SYSROOT}")
+			else()
 				list (APPEND _compileFlags "-isysroot" "${CMAKE_OSX_SYSROOT}")
 			endif()
 		endif()
-		if (CMAKE_OSX_DEPLOYMENT_TARGET AND CMAKE_${_language}_OSX_DEPLOYMENT_TARGET_FLAG)
-			list (APPEND _compileFlags "${CMAKE_${_language}_OSX_DEPLOYMENT_TARGET_FLAG}${CMAKE_OSX_DEPLOYMENT_TARGET}")
+		if (CMAKE_OSX_DEPLOYMENT_TARGET)
+			if (CMAKE_${_language}_OSX_DEPLOYMENT_TARGET_FLAG)
+				list (APPEND _compileFlags "${CMAKE_${_language}_OSX_DEPLOYMENT_TARGET_FLAG}${CMAKE_OSX_DEPLOYMENT_TARGET}")
+			else()
+				list (APPEND _compileFlags "-mmacosx-version-min=${CMAKE_OSX_DEPLOYMENT_TARGET}")
+			endif()
 		endif()
 	endif()
 	if (COTIRE_DEBUG AND _compileFlags)
@@ -683,6 +689,24 @@ macro (cotire_add_includes_to_cmd _cmdVar _language)
 	endforeach()
 endmacro()
 
+macro (cotire_add_frameworks_to_cmd _cmdVar _language)
+	if (APPLE)
+		set (_frameWorkDirs "")
+		foreach (_include ${ARGN})
+			if (IS_ABSOLUTE "${_include}" AND _include MATCHES "\\.framework$")
+				get_filename_component(_frameWorkDir "${_include}" PATH)
+				list (APPEND _frameWorkDirs "${_frameWorkDir}")
+			endif()
+		endforeach()
+		if (_frameWorkDirs)
+			list (REMOVE_DUPLICATES _frameWorkDirs)
+			foreach (_frameWorkDir ${_frameWorkDirs})
+				list (APPEND ${_cmdVar} "-F${_frameWorkDir}")
+			endforeach()
+		endif()
+	endif()
+endmacro()
+
 macro (cotire_add_compile_flags_to_cmd _cmdVar)
 	foreach (_flag ${ARGN})
 		list (APPEND ${_cmdVar} "${_flag}")
@@ -936,6 +960,7 @@ function (cotire_scan_includes _includesVar)
 	cotire_add_definitions_to_cmd(_cmd "${_option_LANGUAGE}" ${_option_COMPILE_DEFINITIONS})
 	cotire_add_compile_flags_to_cmd(_cmd ${_option_COMPILE_FLAGS})
 	cotire_add_includes_to_cmd(_cmd "${_option_LANGUAGE}" ${_option_INCLUDE_DIRECTORIES})
+	cotire_add_frameworks_to_cmd(_cmd "${_option_LANGUAGE}" ${_option_INCLUDE_DIRECTORIES})
 	cotire_add_makedep_flags("${_option_LANGUAGE}" "${_option_COMPILER_ID}" "${_option_COMPILER_VERSION}" _cmd)
 	# only consider existing source files for scanning
 	set (_existingSourceFiles "")
@@ -1478,6 +1503,7 @@ function (cotire_precompile_prefix_header _prefixFile _pchFile _hostFile)
 	cotire_add_definitions_to_cmd(_cmd "${_option_LANGUAGE}" ${_option_COMPILE_DEFINITIONS})
 	cotire_add_compile_flags_to_cmd(_cmd ${_option_COMPILE_FLAGS})
 	cotire_add_includes_to_cmd(_cmd "${_option_LANGUAGE}" ${_option_INCLUDE_DIRECTORIES})
+	cotire_add_frameworks_to_cmd(_cmd "${_option_LANGUAGE}" ${_option_INCLUDE_DIRECTORIES})
 	cotire_add_pch_compilation_flags(
 		"${_option_LANGUAGE}" "${_option_COMPILER_ID}" "${_option_COMPILER_VERSION}"
 		"${_prefixFile}" "${_pchFile}" "${_hostFile}" _cmd)

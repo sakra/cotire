@@ -9,9 +9,9 @@ features
 --------
 
 * Non-intrusive. Requires no source code modification and only minimal changes to CMake list files.
-* Automatically generates a single compilation unit (aka unity source file) for a CMake target.
+* Automatically generates a [single compilation unit][scu] (aka unity source file) for a CMake target.
 * Automatically generates a [prefix header][pfh] by tracking includes used by a CMake target.
-* Automatically precompiles prefix header and applies resulting precompiled header to a CMake target.
+* Automatically precompiles prefix header and applies resulting [precompiled header][pch] to a CMake target.
 * Alternatively, allows for using manually maintained unity source and prefix header files.
 * Supports C/C++ compilers Clang, GCC, Intel and Visual Studio C++.
 * Supports mixed language CMake targets.

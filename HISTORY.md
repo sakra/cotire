@@ -1,3 +1,9 @@
+## 1.5.2 (2014-01-17)
+
+* honor framework includes under OS X correctly.
+* fix handling of OS X specific variables `CMAKE_OSX_SYSROOT` and `CMAKE_OSX_DEPLOYMENT_TARGET`.
+* add new examples to the `Patches` directory.
+
 ## 1.5.1 (2013-11-12)
 
 * fixed string quoting bugs.
