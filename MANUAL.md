@@ -634,6 +634,7 @@ Cotire is not compatible with [Xoreax IncrediBuild][XGE].
 
 [1260]:http://www.cmake.org/Bug/view.php?id=1260
 [ccch]:http://ccache.samba.org/
+[ccch_pch]:http://ccache.samba.org/manual.html#_precompiled_headers
 [clang_pch]:http://clang.llvm.org/docs/UsersManual.html#precompiledheaders
 [gcc_pch]:http://gcc.gnu.org/onlinedocs/gcc/Precompiled-Headers.html
 [kde4macros]:http://kbfxmenu.googlecode.com/svn/trunk/kbfx3/cmakemodules/KDE4Macros.cmake
