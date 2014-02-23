@@ -535,6 +535,15 @@ enabled in the following way upon configuring the project:
     $ export CXX="/usr/local/bin/ccache /usr/bin/g++"
     $ cmake ..
 
+Note that with ccache in order for precompiled headers to work properly, it is necessary to set
+the environment variable `CCACHE_SLOPPINESS` to `time_macros`. Otherwise the build process may
+abort with the following error message:
+
+    fatal error: file 'example_CXX_prefix.hxx' has been modified since the precompiled header
+          'example_CXX_prefix.hxx.gch' was built
+
+Also see the [ccache manual][ccch_pch].
+
 ### applying cotire to object library targets
 
 CMake 2.8.8 introduced a new type of library target called [object library][objlib]. An object
