@@ -1,3 +1,10 @@
+## 1.6.0 (2014-03-16)
+
+* suppress compiler warnings from precompiled headers.
+* fix Clang compatibility issue with prefix header generation.
+* use file extension `.pch` for precompiled headers generated with Clang.
+* manual updates.
+
 ## 1.5.2 (2014-01-17)
 
 * honor framework includes under OS X correctly.

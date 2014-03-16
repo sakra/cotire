@@ -117,7 +117,7 @@ It consists of preprocessor include directives for each of the target source fil
 are included in the same order that is used in the CMake `add_executable` or `add_library` call.
 Header files are omitted.
 
-This is a unity source generated for the example project under Mac OS X:
+This is a unity source generated for the example project under OS X:
 
     #ifdef __cplusplus
     #include "/Users/sakra/Documents/cotire/src/main.cpp"
@@ -152,16 +152,19 @@ Generating the prefix header from the unity source is much faster than running e
 target source file through the preprocessor, because the coalesced unity source will make the
 preprocessor process most header files only once.
 
-This is a prefix header produced for the example project with Visual Studio 2008 under Windows:
+This is a prefix header produced for the example project with Visual Studio 2013 under Windows 7:
 
+    #pragma warning(push, 0)
     #ifdef __cplusplus
-    #include "C:\Program Files\Microsoft Visual Studio 9.0\VC\include\string"
-    #include "C:\Program Files\Microsoft Visual Studio 9.0\VC\include\algorithm"
-    #include "C:\Program Files\Microsoft Visual Studio 9.0\VC\include\iostream"
+    #include "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\string"
+    #include "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\algorithm"
+    #include "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\include\iostream"
     #endif
+    #pragma warning(pop)
 
-Generating the prefix file under Ubuntu Linux with GCC 4.6 yields the following result:
+Generating the prefix file under Ubuntu 12.04 with GCC 4.6 yields the following result:
 
+    #pragma GCC system_header
     #ifdef __cplusplus
     #include "/usr/include/c++/4.6/string"
     #include "/usr/include/c++/4.6/algorithm"
@@ -169,13 +172,16 @@ Generating the prefix file under Ubuntu Linux with GCC 4.6 yields the following 
     #include "/usr/include/c++/4.6/iostream"
     #endif
 
-Using Clang 3.1 under Mac OS X 10.7 this is the resulting prefix header:
+Using Xcode 5.1 under OS X 10.9, this is the resulting prefix header:
 
+    #pragma clang system_header
     #ifdef __cplusplus
-    #include "/usr/include/c++/4.2.1/string"
-    #include "/usr/include/c++/4.2.1/iostream"
-    #include "/usr/include/c++/4.2.1/iterator"
+    #include "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/c++/v1/string"
+    #include "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/c++/v1/iostream"
     #endif
+
+Besides include directives, cotire also adds compiler specific pragmas to the generated prefix
+header to suppress compiler warnings upon inclusion.
 
 Cotire attempts to produce a minimal list of header files by omitting header files indirectly
 included by a header that is already part of the prefix header. Header files with nonstandard
@@ -200,11 +206,11 @@ build rule and generates the precompiled header as described in the documentatio
 [GCC][gcc_pch] and [Clang][clang_pch]. Cotire then modifies the `COMPILE_FLAGS` property of the
 target to force the inclusion of the prefix header.
 
-Visual Studio C++ and Intel C++ use a [different approach][msvc_pch] to pre-compiling. Both compilers
-require a host source file to generate the precompiled header as a side effect of producing an object file.
-Cotire modifies the `COMPILE_FLAGS` of the first target source file to [generate][msvc_pch_create]
-the precompiled header and then modifies the `COMPILE_FLAGS` of the remaining target source files
-to [include][msvc_pch_use] the generated precompiled header.
+Visual Studio C++ and Intel C++ use a [different approach][msvc_pch] to pre-compiling. Both
+compilers require a host source file to generate the precompiled header as a side effect of
+producing an object file. Cotire modifies the `COMPILE_FLAGS` of the first target source file to
+[generate][msvc_pch_create] the precompiled header and then modifies the `COMPILE_FLAGS` of the
+remaining target source files to [include][msvc_pch_use] the generated precompiled header.
 
 For Xcode projects generated with CMake, cotire completely hands off the pre-compilation of
 the prefix header and the inclusion of the precompiled header to the IDE. Cotire attaches a
@@ -621,8 +627,8 @@ files ending with .m and .mm are excluded by default through the initial default
 
 ### Intel C++
 
-Intel C++ support has only been tested with [Intel C++ Composer XE 2013 for Linux][icc_linux] and may
-not work with other platforms or versions.
+Intel C++ support has only been tested with [Intel C++ Composer XE 2013 for Linux][icc_linux] and
+may not work with other platforms or versions.
 
 The Intel compiler may issue incorrect warnings #672 (the command line options do not match those
 used when precompiled header was created) or #673 (the initial sequence of preprocessing directives
