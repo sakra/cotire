@@ -5,7 +5,7 @@
 #include "example.h"
 #include "log.h"
 
-int main(int argc, char** argv)
+int main()
 {
 	std::string msg = example::get_message();
 	logging::info(msg);

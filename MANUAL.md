@@ -539,6 +539,7 @@ enabled in the following way upon configuring the project:
 
     $ export CC="/usr/local/bin/ccache /usr/bin/gcc"
     $ export CXX="/usr/local/bin/ccache /usr/bin/g++"
+    $ export CCACHE_SLOPPINESS=time_macros
     $ cmake ..
 
 Note that with ccache in order for precompiled headers to work properly, it is necessary to set

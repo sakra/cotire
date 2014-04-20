@@ -1,3 +1,8 @@
+## 1.6.1 (2014-04-20)
+
+* fixed bug where precompiled headers did not work with Clang (thanks to nh2 for reporting).
+* when using ccache, require that environment variable `CCACHE_SLOPPINESS` is set to `time_macros`.
+
 ## 1.6.0 (2014-03-16)
 
 * suppress compiler warnings from precompiled headers.

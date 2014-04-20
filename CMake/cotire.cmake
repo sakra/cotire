@@ -45,7 +45,7 @@ if (NOT CMAKE_SCRIPT_MODE_FILE)
 endif()
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.6.0")
+set (COTIRE_CMAKE_MODULE_VERSION "1.6.1")
 
 include(CMakeParseArguments)
 include(ProcessorCount)
@@ -856,7 +856,7 @@ function (cotire_parse_includes _language _scanOutput _ignoredIncudeDirs _honore
 	# remove duplicate lines to speed up parsing
 	list (REMOVE_DUPLICATES _scanOutput)
 	list (LENGTH _scanOutput _uniqueLen)
-	if (COTIRE_VERBOSE)
+	if (COTIRE_VERBOSE OR COTIRE_DEBUG)
 		message (STATUS "Scanning ${_uniqueLen} unique lines of ${_len} for includes")
 		if (_ignoredExtensions)
 			message (STATUS "Ignored extensions: ${_ignoredExtensions}")
@@ -1408,29 +1408,36 @@ function (cotire_add_prefix_pch_inclusion_flags _language _compilerID _compilerV
 		# GCC options used
 		# -include process include file as the first line of the primary source file
 		# -Winvalid-pch warns if precompiled header is found but cannot be used
-		# -isystem treat include directory as a system directory (i.e., suppress warnings from headers)
-		get_filename_component(_prefixDir "${_prefixFile}" PATH)
-		get_filename_component(_prefixName "${_prefixFile}" NAME)
 		if (_flags)
 			# append to list
-			list (APPEND _flags "-Winvalid-pch" "-isystem" "${_prefixDir}" "-include" "${_prefixName}")
+			list (APPEND _flags "-Winvalid-pch" "-include" "${_prefixFile}")
 		else()
 			# return as a flag string
-			set (_flags "-Winvalid-pch -isystem \"${_prefixDir}\" -include \"${_prefixName}\"")
+			set (_flags "-Winvalid-pch -include \"${_prefixFile}\"")
 		endif()
 	elseif (_compilerID MATCHES "Clang")
 		# Clang options used
 		# -include process include file as the first line of the primary source file
+		# -include-pch include precompiled header file
 		# -Qunused-arguments don't emit warning for unused driver arguments
-		# -isystem treat include directory as a system directory (i.e., suppress warnings from headers)
-		get_filename_component(_prefixDir "${_prefixFile}" PATH)
-		get_filename_component(_prefixName "${_prefixFile}" NAME)
-		if (_flags)
-			# append to list
-			list (APPEND _flags  "-Qunused-arguments" "-isystem" "${_prefixDir}" "-include" "${_prefixName}")
+		if (_pchFile AND NOT CMAKE_${_language}_COMPILER MATCHES "ccache")
+			if (_flags)
+				# append to list
+					list (APPEND _flags "-Qunused-arguments" "-include-pch" "${_pchFile}")
+			else()
+				# return as a flag string
+				set (_flags "-Qunused-arguments -include-pch \"${_pchFile}\"")
+			endif()
 		else()
-			# return as a flag string
-			set (_flags "-Qunused-arguments -isystem \"${_prefixDir}\" -include \"${_prefixName}\"")
+			# no precompiled header, force inclusion of prefix header
+			# ccache requires the -include flag to be used in order to process precompiled header correctly
+			if (_flags)
+				# append to list
+				list (APPEND _flags "-Qunused-arguments" "-include" "${_prefixFile}")
+			else()
+				# return as a flag string
+				set (_flags "-Qunused-arguments -include \"${_prefixFile}\"")
+			endif()
 		endif()
 	elseif (_compilerID MATCHES "Intel")
 		if (WIN32)
@@ -1569,6 +1576,13 @@ function (cotire_check_precompiled_header_support _language _targetSourceDir _ta
 		endif()
 	else()
 		set (${_msgVar} "${_unsupportedCompiler}." PARENT_SCOPE)
+	endif()
+	if (CMAKE_${_language}_COMPILER MATCHES "ccache")
+		if (NOT "$ENV{CCACHE_SLOPPINESS}" MATCHES "time_macros")
+			set (${_msgVar}
+				"ccache requires the environment variable CCACHE_SLOPPINESS to be set to time_macros."
+				PARENT_SCOPE)
+		endif()
 	endif()
 	if (APPLE)
 		# PCH compilation not supported by GCC / Clang for multi-architecture builds (e.g., i386, x86_64)
