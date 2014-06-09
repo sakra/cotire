@@ -1,3 +1,12 @@
+## 1.6.2 (2014-06-09)
+
+* don't use `-w` flag for pre-compiling the prefix header, because it has unwanted side effects.
+* correctly handle linked targets' `INTERFACE_COMPILE_OPTIONS`, `INTERFACE_INCLUDE_DIRECTORIES`
+  and `INTERFACE_COMPILE_DEFINITIONS` properties upon pre-compiling and prefix header generation.
+* For Clang and GCC, pre-compile prefix header through indirect inclusion via a prefix source file,
+  to make both compilers honor the `system_header` pragma in the prefix header correctly.
+* fix ccache incompatibility.
+
 ## 1.6.1 (2014-04-20)
 
 * fixed bug where precompiled headers did not work with Clang (thanks to nh2 for reporting).
