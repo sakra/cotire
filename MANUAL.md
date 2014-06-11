@@ -198,8 +198,9 @@ machines. It is automatically recreated by the build system if it goes missing.
 The generated prefix header can be applied to a different target added in the same source directory
 (see below).
 
-Optionally, cotire may also create a prefix source file that consists of a single include directive
-for the prefix header. This file is needed for pre-compiling the prefix header with Clang or GCC.
+Optionally, cotire will also create a prefix source file that consists of a single include directive
+for the prefix header. This file is needed for pre-compiling the prefix header with Clang or GCC
+to make both compilers handle the `system_header` pragma correctly.
 
 ### the precompiled header
 

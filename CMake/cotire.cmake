@@ -45,7 +45,7 @@ if (NOT CMAKE_SCRIPT_MODE_FILE)
 endif()
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.6.2")
+set (COTIRE_CMAKE_MODULE_VERSION "1.6.3")
 
 include(CMakeParseArguments)
 include(ProcessorCount)
@@ -257,6 +257,24 @@ function (cotire_copy_set_properites _configurations _type _source _target)
 	endforeach()
 endfunction()
 
+function (cotire_get_target_link_libraries_for_usage_requirements _target _targetLinkLibrariesVar)
+	set (_targetLinkLibraries "")
+	get_target_property(_librariesToProcess ${_target} LINK_LIBRARIES)
+	while (_librariesToProcess)
+		# remove from head
+		list (GET _librariesToProcess 0 _library)
+		list (REMOVE_AT _librariesToProcess 0)
+		list (FIND _targetLinkLibraries ${_library} _index)
+		if (_index LESS 0)
+			list (APPEND _targetLinkLibraries ${_library})
+			# process transitive libraries
+			get_target_property(_libraries ${_library} LINK_LIBRARIES)
+			list (APPEND _librariesToProcess ${_libraries})
+		endif()
+	endwhile()
+	set (${_targetLinkLibrariesVar} ${_targetLinkLibraries} PARENT_SCOPE)
+endfunction()
+
 function (cotire_filter_compile_flags _language _flagFilter _matchedOptionsVar _unmatchedOptionsVar)
 	if (WIN32 AND CMAKE_${_language}_COMPILER_ID MATCHES "MSVC|Intel")
 		set (_flagPrefix "[/-]")
@@ -369,7 +387,7 @@ function (cotire_get_target_compile_flags _config _language _directory _target _
 			set (_compileFlags "${_compileFlags} ${_targetOptions}")
 		endif()
 		# interface compile options from linked library targets
-		get_target_property(_linkLibraries ${_target} LINK_LIBRARIES)
+		cotire_get_target_link_libraries_for_usage_requirements(${_target} _linkLibraries)
 		foreach (_library ${_linkLibraries})
 			get_target_property(_targetOptions ${_library} INTERFACE_COMPILE_OPTIONS)
 			if (_targetOptions)
@@ -436,7 +454,7 @@ function (cotire_get_target_include_directories _config _language _targetSourceD
 			list (APPEND _dirs ${_targetDirs})
 		endif()
 		# interface include directories from linked library targets
-		get_target_property(_linkLibraries ${_target} LINK_LIBRARIES)
+		cotire_get_target_link_libraries_for_usage_requirements(${_target} _linkLibraries)
 		foreach (_library ${_linkLibraries})
 			get_target_property(_targetDirs ${_library} INTERFACE_INCLUDE_DIRECTORIES)
 			if (_targetDirs)
@@ -534,7 +552,7 @@ function (cotire_get_target_compile_definitions _config _language _directory _ta
 		list (APPEND _configDefinitions ${_definitions})
 	endif()
 	# interface compile definitions from linked library targets
-	get_target_property(_linkLibraries ${_target} LINK_LIBRARIES)
+	cotire_get_target_link_libraries_for_usage_requirements(${_target} _linkLibraries)
 	foreach (_library ${_linkLibraries})
 		get_target_property(_definitions ${_library} INTERFACE_COMPILE_DEFINITIONS)
 		if (_definitions)
@@ -1925,24 +1943,18 @@ function (cotire_setup_pch_file_compilation _language _target _targetSourceDir _
 		# for makefile based generator, we add a custom command to precompile the prefix header
 		if (_targetScript)
 			cotire_set_cmd_to_prologue(_cmds)
-			if (CMAKE_${_language}_COMPILER_ID MATCHES "GNU|Clang")
-				# GNU and Clang require indirect compilation of the prefix header to make them honor the system_header pragma
-				cotire_prefix_header_to_source_file_path(${_language} "${_prefixFile}" _prefixSourceFile)
-			else()
-				set (_prefixSourceFile "${_prefixFile}")
-			endif()
 			list (GET _sourceFiles 0 _hostFile)
-			list (APPEND _cmds -P "${COTIRE_CMAKE_MODULE_FILE}" "precompile" "${_targetScript}" "${_prefixSourceFile}" "${_pchFile}" "${_hostFile}")
+			list (APPEND _cmds -P "${COTIRE_CMAKE_MODULE_FILE}" "precompile" "${_targetScript}" "${_prefixFile}" "${_pchFile}" "${_hostFile}")
 			file (RELATIVE_PATH _pchFileRelPath "${CMAKE_BINARY_DIR}" "${_pchFile}")
 			if (COTIRE_DEBUG)
-				message (STATUS "add_custom_command: OUTPUT ${_pchFile} ${_cmds} DEPENDS ${_prefixSourceFile} IMPLICIT_DEPENDS ${_language} ${_prefixSourceFile}")
+				message (STATUS "add_custom_command: OUTPUT ${_pchFile} ${_cmds} DEPENDS ${_prefixFile} IMPLICIT_DEPENDS ${_language} ${_prefixFile}")
 			endif()
 			set_property (SOURCE "${_pchFile}" PROPERTY GENERATED TRUE)
 			add_custom_command(
 				OUTPUT "${_pchFile}"
 				COMMAND ${_cmds}
-				DEPENDS "${_prefixSourceFile}"
-				IMPLICIT_DEPENDS ${_language} "${_prefixSourceFile}"
+				DEPENDS "${_prefixFile}"
+				IMPLICIT_DEPENDS ${_language} "${_prefixFile}"
 				WORKING_DIRECTORY "${_targetSourceDir}"
 				COMMENT "Building ${_language} precompiled header ${_pchFileRelPath}" VERBATIM)
 		endif()
@@ -2040,8 +2052,8 @@ function (cotire_setup_combine_command _language _sourceDir _targetScript _joine
 	endif()
 	set_property (SOURCE "${_joinedFile}" PROPERTY GENERATED TRUE)
 	file (RELATIVE_PATH _joinedFileRelPath "${CMAKE_BINARY_DIR}" "${_joinedFile}")
-	get_filename_component(_joinedFileBaseName "${_joinedFileRelPath}" NAME_WE)
-	get_filename_component(_joinedFileExt "${_joinedFileRelPath}" EXT)
+	get_filename_component(_joinedFileBaseName "${_joinedFile}" NAME_WE)
+	get_filename_component(_joinedFileExt "${_joinedFile}" EXT)
 	if (_language AND _joinedFileBaseName MATCHES "${COTIRE_UNITY_SOURCE_FILENAME_SUFFIX}$")
 		set (_comment "Generating ${_language} unity source ${_joinedFileRelPath}")
 	elseif (_language AND _joinedFileBaseName MATCHES "${COTIRE_PREFIX_HEADER_FILENAME_SUFFIX}$")
@@ -2153,7 +2165,7 @@ function (cotire_setup_unity_generation_commands _language _targetSourceDir _tar
 	set (${_cmdsVar} ${${_cmdsVar}} PARENT_SCOPE)
 endfunction()
 
-function (cotire_setup_single_prefix_generation_command _language _target _targetSourceDir _targetScript _prefixFile _unityFile _cmdsVar)
+function (cotire_setup_prefix_generation_command _language _target _targetSourceDir _targetScript _prefixFile _unityFile _cmdsVar)
 	set (_sourceFiles ${ARGN})
 	set (_dependencySources "")
 	cotire_get_prefix_header_dependencies(${_language} ${_target} _dependencySources ${_sourceFiles})
@@ -2164,32 +2176,59 @@ function (cotire_setup_single_prefix_generation_command _language _target _targe
 		message (STATUS "add_custom_command: OUTPUT ${_prefixFile} COMMAND ${_prefixCmd} DEPENDS ${_targetScript} ${_unityFile} ${_dependencySources}")
 	endif()
 	file (RELATIVE_PATH _prefixFileRelPath "${CMAKE_BINARY_DIR}" "${_prefixFile}")
+	get_filename_component(_prefixFileExt "${_prefixFile}" EXT)
+	if (_prefixFileExt MATCHES "^\\.c")
+		set (_comment "Generating ${_language} prefix source ${_prefixFileRelPath}")
+	else()
+		set (_comment "Generating ${_language} prefix header ${_prefixFileRelPath}")
+	endif()
 	add_custom_command(
 		OUTPUT "${_prefixFile}" "${_prefixFile}.log"
 		COMMAND ${_prefixCmd}
 		DEPENDS "${_targetScript}" "${_unityFile}" ${_dependencySources}
-		COMMENT "Generating ${_language} prefix header ${_prefixFileRelPath}"
+		COMMENT "${_comment}"
 		WORKING_DIRECTORY "${CMAKE_BINARY_DIR}" VERBATIM)
 	list (APPEND ${_cmdsVar} COMMAND ${_prefixCmd})
 	set (${_cmdsVar} ${${_cmdsVar}} PARENT_SCOPE)
 endfunction()
 
-function (cotire_setup_multi_prefix_generation_command _language _target _targetSourceDir _targetScript _prefixFile _unityFiles _cmdsVar)
+function (cotire_setup_prefix_generation_from_unity_command _language _target _targetSourceDir _targetScript _prefixFile _unityFiles _cmdsVar)
 	set (_sourceFiles ${ARGN})
+	if (CMAKE_${_language}_COMPILER_ID MATCHES "GNU|Clang")
+		# GNU and Clang require indirect compilation of the prefix header to make them honor the system_header pragma
+		cotire_prefix_header_to_source_file_path(${_language} "${_prefixFile}" _prefixSourceFile)
+	else()
+		set (_prefixSourceFile "${_prefixFile}")
+	endif()
 	list (LENGTH _unityFiles _numberOfUnityFiles)
 	if (_numberOfUnityFiles GREATER 1)
 		cotire_make_single_unity_source_file_path(${_language} ${_target} _unityFile)
-		cotire_setup_single_prefix_generation_command(
+		cotire_setup_prefix_generation_command(
 			${_language} ${_target} "${_targetSourceDir}" "${_targetScript}"
-			"${_prefixFile}" "${_unityFile}" ${_cmdsVar} ${_sourceFiles})
+			"${_prefixSourceFile}" "${_unityFile}" ${_cmdsVar} ${_sourceFiles})
 	else()
-		cotire_setup_single_prefix_generation_command(
+		cotire_setup_prefix_generation_command(
 			${_language} ${_target} "${_targetSourceDir}" "${_targetScript}"
-			"${_prefixFile}" "${_unityFiles}" ${_cmdsVar} ${_sourceFiles})
+			"${_prefixSourceFile}" "${_unityFiles}" ${_cmdsVar} ${_sourceFiles})
 	endif()
-	# create a prefix source file from prefix header
-	cotire_prefix_header_to_source_file_path(${_language} "${_prefixFile}" _prefixSourceFile)
-	cotire_setup_combine_command(${_language} "${_targetSourceDir}" "${_targetScript}" "${_prefixSourceFile}" ${_cmdsVar} ${_prefixFile})
+	if (CMAKE_${_language}_COMPILER_ID MATCHES "GNU|Clang")
+		cotire_setup_combine_command(${_language} "${_targetSourceDir}" "${_targetScript}" "${_prefixFile}" ${_cmdsVar} ${_prefixSourceFile})
+	endif()
+	set (${_cmdsVar} ${${_cmdsVar}} PARENT_SCOPE)
+endfunction()
+
+function (cotire_setup_prefix_generation_from_provided_command _language _target _targetSourceDir _targetScript _prefixFile _cmdsVar)
+	set (_prefixHeaderFiles ${ARGN})
+	if (CMAKE_${_language}_COMPILER_ID MATCHES "GNU|Clang")
+		# GNU and Clang require indirect compilation of the prefix header to make them honor the system_header pragma
+		cotire_prefix_header_to_source_file_path(${_language} "${_prefixFile}" _prefixSourceFile)
+	else()
+		set (_prefixSourceFile "${_prefixFile}")
+	endif()
+	cotire_setup_combine_command(${_language} "${_targetSourceDir}" "${_targetScript}" "${_prefixSourceFile}" _cmds ${_prefixHeaderFiles})
+	if (CMAKE_${_language}_COMPILER_ID MATCHES "GNU|Clang")
+		cotire_setup_combine_command(${_language} "${_targetSourceDir}" "${_targetScript}" "${_prefixFile}" _cmds ${_prefixSourceFile})
+	endif()
 	set (${_cmdsVar} ${${_cmdsVar}} PARENT_SCOPE)
 endfunction()
 
@@ -2433,13 +2472,10 @@ function (cotire_process_target_language _language _configurations _targetSource
 		# check for user provided prefix header files
 		get_property(_prefixHeaderFiles TARGET ${_target} PROPERTY COTIRE_${_language}_PREFIX_HEADER_INIT)
 		if (_prefixHeaderFiles)
-			# create prefix header form user provided header files
-			cotire_setup_combine_command(${_language} "${_targetSourceDir}" "${_targetScript}" "${_prefixFile}" _cmds ${_prefixHeaderFiles})
-			# create a prefix source file from prefix header
-			cotire_prefix_header_to_source_file_path(${_language} "${_prefixFile}" _prefixSourceFile)
-			cotire_setup_combine_command(${_language} "${_targetSourceDir}" "${_targetScript}" "${_prefixSourceFile}" _cmds ${_prefixFile})
+			cotire_setup_prefix_generation_from_provided_command(
+				${_language} ${_target} "${_targetSourceDir}" "${_targetScript}" "${_prefixFile}" _cmds ${_prefixHeaderFiles})
 		else()
-			cotire_setup_multi_prefix_generation_command(
+			cotire_setup_prefix_generation_from_unity_command(
 				${_language} ${_target} "${_targetSourceDir}" "${_targetScript}" "${_prefixFile}" "${_unityFiles}" _cmds ${_unitySourceFiles})
 		endif()
 		get_target_property(_targetUsePCH ${_target} COTIRE_ENABLE_PRECOMPILED_HEADER)
@@ -2755,7 +2791,7 @@ function (cotire_target _target)
 	endif()
 endfunction(cotire_target)
 
-function(cotire_target_link_libraries _target)
+function (cotire_target_link_libraries _target)
 	get_target_property(_unityTargetName ${_target} COTIRE_UNITY_TARGET_NAME)
 	if (TARGET "${_unityTargetName}")
 		get_target_property(_linkLibrariesStrategy ${_target} COTIRE_UNITY_LINK_LIBRARIES_INIT)

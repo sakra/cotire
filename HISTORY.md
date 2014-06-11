@@ -1,3 +1,8 @@
+## 1.6.3 (2014-06-11)
+
+* correctly handle usage requirements for transitive link targets.
+* use indirect inclusion for prefix header when using generator Xcode.
+
 ## 1.6.2 (2014-06-09)
 
 * don't use `-w` flag for pre-compiling the prefix header, because it has unwanted side effects.
