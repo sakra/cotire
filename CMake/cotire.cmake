@@ -268,8 +268,10 @@ function (cotire_get_target_link_libraries_for_usage_requirements _target _targe
 		if (_index LESS 0)
 			list (APPEND _targetLinkLibraries ${_library})
 			# process transitive libraries
-			get_target_property(_libraries ${_library} LINK_LIBRARIES)
-			list (APPEND _librariesToProcess ${_libraries})
+			get_target_property(_libraries ${_library} INTERFACE_LINK_LIBRARIES)
+			if (_libraries)
+				list (APPEND _librariesToProcess ${_libraries})
+			endif()
 		endif()
 	endwhile()
 	set (${_targetLinkLibrariesVar} ${_targetLinkLibraries} PARENT_SCOPE)
