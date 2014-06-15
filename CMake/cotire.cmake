@@ -434,8 +434,9 @@ function (cotire_get_target_compile_flags _config _language _directory _target _
 	set (${_flagsVar} ${_compileFlags} PARENT_SCOPE)
 endfunction()
 
-function (cotire_get_target_include_directories _config _language _targetSourceDir _targetBinaryDir _target _includeDirsVar)
+function (cotire_get_target_include_directories _config _language _targetSourceDir _targetBinaryDir _target _includeDirsVar _systemIncludeDirsVar)
 	set (_includeDirs "")
+	set (_systemIncludeDirs "")
 	# default include dirs
 	if (CMAKE_INCLUDE_CURRENT_DIR)
 		list (APPEND _includeDirs "${_targetBinaryDir}")
@@ -455,12 +456,21 @@ function (cotire_get_target_include_directories _config _language _targetSourceD
 		if (_targetDirs)
 			list (APPEND _dirs ${_targetDirs})
 		endif()
+		get_target_property(_targetDirs ${_target} INTERFACE_SYSTEM_INCLUDE_DIRECTORIES)
+		if (_targetDirs)
+			list (APPEND _systemIncludeDirs ${_targetDirs})
+		endif()
+
 		# interface include directories from linked library targets
 		cotire_get_target_link_libraries_for_usage_requirements(${_target} _linkLibraries)
 		foreach (_library ${_linkLibraries})
 			get_target_property(_targetDirs ${_library} INTERFACE_INCLUDE_DIRECTORIES)
 			if (_targetDirs)
 				list (APPEND _dirs ${_targetDirs})
+			endif()
+			get_target_property(_targetDirs ${_library} INTERFACE_SYSTEM_INCLUDE_DIRECTORIES)
+			if (_targetDirs)
+				list (APPEND _systemIncludeDirs ${_targetDirs})
 			endif()
 		endforeach()
 	endif()
@@ -487,6 +497,7 @@ function (cotire_get_target_include_directories _config _language _targetSourceD
 		endif()
 	endforeach()
 	list (REMOVE_DUPLICATES _includeDirs)
+	list (REMOVE_DUPLICATES _systemIncludeDirs)
 	if (CMAKE_${_language}_IMPLICIT_INCLUDE_DIRECTORIES)
 		list (REMOVE_ITEM _includeDirs ${CMAKE_${_language}_IMPLICIT_INCLUDE_DIRECTORIES})
 	endif()
@@ -494,6 +505,10 @@ function (cotire_get_target_include_directories _config _language _targetSourceD
 		message (STATUS "Target ${_target} include dirs ${_includeDirs}")
 	endif()
 	set (${_includeDirsVar} ${_includeDirs} PARENT_SCOPE)
+	if (COTIRE_DEBUG AND _systemIncludeDirs)
+		message (STATUS "Target ${_target} system include dirs ${_systemIncludeDirs}")
+	endif()
+	set (${_systemIncludeDirsVar} ${_systemIncludeDirs} PARENT_SCOPE)
 endfunction()
 
 macro (cotire_make_C_identifier _identifierVar _str)
@@ -726,13 +741,18 @@ macro (cotire_add_definitions_to_cmd _cmdVar _language)
 	endforeach()
 endmacro()
 
-macro (cotire_add_includes_to_cmd _cmdVar _language)
-	foreach (_include ${ARGN})
+macro (cotire_add_includes_to_cmd _cmdVar _language _includeSystemFlag _includesVar _systemIncludesVar)
+	foreach (_include ${${_includesVar}})
 		if (WIN32 AND CMAKE_${_language}_COMPILER_ID MATCHES "MSVC|Intel")
 			file (TO_NATIVE_PATH "${_include}" _include)
 			list (APPEND ${_cmdVar} "/I${_include}")
 		else()
-			list (APPEND ${_cmdVar} "-I${_include}")
+			list(FIND ${_systemIncludesVar} ${_include} _index)
+			if(_index GREATER -1 AND NOT "${_includeSystemFlag}" STREQUAL "")
+			        list (APPEND ${_cmdVar} "${_includeSystemFlag} ${_include}")
+			else()
+				list (APPEND ${_cmdVar} "-I${_include}")
+			endif()
 		endif()
 	endforeach()
 endmacro()
@@ -993,8 +1013,8 @@ endfunction()
 
 function (cotire_scan_includes _includesVar)
 	set(_options "")
-	set(_oneValueArgs COMPILER_ID COMPILER_EXECUTABLE COMPILER_VERSION LANGUAGE UNPARSED_LINES)
-	set(_multiValueArgs COMPILE_DEFINITIONS COMPILE_FLAGS INCLUDE_DIRECTORIES IGNORE_PATH INCLUDE_PATH IGNORE_EXTENSIONS)
+	set(_oneValueArgs COMPILER_ID COMPILER_EXECUTABLE COMPILER_VERSION INCLUDE_SYSTEM_FLAG LANGUAGE UNPARSED_LINES)
+	set(_multiValueArgs COMPILE_DEFINITIONS COMPILE_FLAGS INCLUDE_DIRECTORIES SYSTEM_INCLUDE_DIRECTORIES IGNORE_PATH INCLUDE_PATH IGNORE_EXTENSIONS)
 	cmake_parse_arguments(_option "${_options}" "${_oneValueArgs}" "${_multiValueArgs}" ${ARGN})
 	set (_sourceFiles ${_option_UNPARSED_ARGUMENTS})
 	if (NOT _option_LANGUAGE)
@@ -1007,7 +1027,7 @@ function (cotire_scan_includes _includesVar)
 	cotire_init_compile_cmd(_cmd "${_option_LANGUAGE}" "${_option_COMPILER_EXECUTABLE}" "${_option_COMPILER_ARG1}")
 	cotire_add_definitions_to_cmd(_cmd "${_option_LANGUAGE}" ${_option_COMPILE_DEFINITIONS})
 	cotire_add_compile_flags_to_cmd(_cmd ${_option_COMPILE_FLAGS})
-	cotire_add_includes_to_cmd(_cmd "${_option_LANGUAGE}" ${_option_INCLUDE_DIRECTORIES})
+	cotire_add_includes_to_cmd(_cmd "${_option_LANGUAGE}" "${_option_INCLUDE_SYSTEM_FLAG}" _option_INCLUDE_DIRECTORIES _option_SYSTEM_INCLUDE_DIRECTORIES)
 	cotire_add_frameworks_to_cmd(_cmd "${_option_LANGUAGE}" ${_option_INCLUDE_DIRECTORIES})
 	cotire_add_makedep_flags("${_option_LANGUAGE}" "${_option_COMPILER_ID}" "${_option_COMPILER_VERSION}" _cmd)
 	# only consider existing source files for scanning
@@ -1185,9 +1205,9 @@ endfunction()
 
 function (cotire_generate_prefix_header _prefixFile)
 	set(_options "")
-	set(_oneValueArgs LANGUAGE COMPILER_EXECUTABLE COMPILER_ID COMPILER_VERSION)
+	set(_oneValueArgs LANGUAGE COMPILER_EXECUTABLE COMPILER_ID COMPILER_VERSION INCLUDE_SYSTEM_FLAG)
 	set(_multiValueArgs DEPENDS COMPILE_DEFINITIONS COMPILE_FLAGS
-		INCLUDE_DIRECTORIES IGNORE_PATH INCLUDE_PATH IGNORE_EXTENSIONS)
+		INCLUDE_DIRECTORIES SYSTEM_INCLUDE_DIRECTORIES IGNORE_PATH INCLUDE_PATH IGNORE_EXTENSIONS)
 	cmake_parse_arguments(_option "${_options}" "${_oneValueArgs}" "${_multiValueArgs}" ${ARGN})
 	if (_option_DEPENDS)
 		cotire_check_file_up_to_date(_prefixFileIsUpToDate "${_prefixFile}" ${_option_DEPENDS})
@@ -1219,6 +1239,8 @@ function (cotire_generate_prefix_header _prefixFile)
 		COMPILE_DEFINITIONS ${_option_COMPILE_DEFINITIONS}
 		COMPILE_FLAGS ${_option_COMPILE_FLAGS}
 		INCLUDE_DIRECTORIES ${_option_INCLUDE_DIRECTORIES}
+		INCLUDE_SYSTEM_FLAG ${_option_INCLUDE_SYSTEM_FLAG}
+		SYSTEM_INCLUDE_DIRECTORIES ${_option_SYSTEM_INCLUDE_DIRECTORIES}
 		IGNORE_PATH ${_option_IGNORE_PATH}
 		INCLUDE_PATH ${_option_INCLUDE_PATH}
 		IGNORE_EXTENSIONS ${_option_IGNORE_EXTENSIONS}
@@ -1555,8 +1577,8 @@ endfunction()
 
 function (cotire_precompile_prefix_header _prefixFile _pchFile _hostFile)
 	set(_options "")
-	set(_oneValueArgs COMPILER_EXECUTABLE COMPILER_ID COMPILER_VERSION LANGUAGE)
-	set(_multiValueArgs COMPILE_DEFINITIONS COMPILE_FLAGS INCLUDE_DIRECTORIES)
+	set(_oneValueArgs COMPILER_EXECUTABLE COMPILER_ID COMPILER_VERSION INCLUDE_SYSTEM_FLAG LANGUAGE)
+	set(_multiValueArgs COMPILE_DEFINITIONS COMPILE_FLAGS INCLUDE_DIRECTORIES SYSTEM_INCLUDE_DIRECTORIES SYS)
 	cmake_parse_arguments(_option "${_options}" "${_oneValueArgs}" "${_multiValueArgs}" ${ARGN})
 	if (NOT _option_LANGUAGE)
 		set (_option_LANGUAGE "CXX")
@@ -1567,7 +1589,7 @@ function (cotire_precompile_prefix_header _prefixFile _pchFile _hostFile)
 	cotire_init_compile_cmd(_cmd "${_option_LANGUAGE}" "${_option_COMPILER_EXECUTABLE}" "${_option_COMPILER_ARG1}")
 	cotire_add_definitions_to_cmd(_cmd "${_option_LANGUAGE}" ${_option_COMPILE_DEFINITIONS})
 	cotire_add_compile_flags_to_cmd(_cmd ${_option_COMPILE_FLAGS})
-	cotire_add_includes_to_cmd(_cmd "${_option_LANGUAGE}" ${_option_INCLUDE_DIRECTORIES})
+	cotire_add_includes_to_cmd(_cmd "${_option_LANGUAGE}" "${_option_INCLUDE_SYSTEM_FLAG}" _option_INCLUDE_DIRECTORIES _option_SYSTEM_INCLUDE_DIRECTORIES)
 	cotire_add_frameworks_to_cmd(_cmd "${_option_LANGUAGE}" ${_option_INCLUDE_DIRECTORIES})
 	cotire_add_pch_compilation_flags(
 		"${_option_LANGUAGE}" "${_option_COMPILER_ID}" "${_option_COMPILER_VERSION}"
@@ -1890,11 +1912,12 @@ function (cotire_generate_target_script _language _configurations _targetSourceD
 	get_target_property(COTIRE_TARGET_MAXIMUM_NUMBER_OF_INCLUDES ${_target} COTIRE_UNITY_SOURCE_MAXIMUM_NUMBER_OF_INCLUDES)
 	cotire_get_source_files_undefs(COTIRE_UNITY_SOURCE_PRE_UNDEFS COTIRE_TARGET_SOURCES_PRE_UNDEFS ${COTIRE_TARGET_SOURCES})
 	cotire_get_source_files_undefs(COTIRE_UNITY_SOURCE_POST_UNDEFS COTIRE_TARGET_SOURCES_POST_UNDEFS ${COTIRE_TARGET_SOURCES})
+	set (COTIRE_INCLUDE_SYSTEM_FLAG ${CMAKE_INCLUDE_SYSTEM_FLAG_${_language}})
 	set (COTIRE_TARGET_CONFIGURATION_TYPES "${_configurations}")
 	foreach (_config ${_configurations})
 		string (TOUPPER "${_config}" _upperConfig)
 		cotire_get_target_include_directories(
-			"${_config}" "${_language}" "${_targetSourceDir}" "${_targetBinaryDir}" "${_target}" COTIRE_TARGET_INCLUDE_DIRECTORIES_${_upperConfig})
+			"${_config}" "${_language}" "${_targetSourceDir}" "${_targetBinaryDir}" "${_target}" COTIRE_TARGET_INCLUDE_DIRECTORIES_${_upperConfig} COTIRE_TARGET_SYSTEM_INCLUDE_DIRECTORIES_${_upperConfig})
 		cotire_get_target_compile_definitions(
 			"${_config}" "${_language}" "${_targetSourceDir}" "${_target}" COTIRE_TARGET_COMPILE_DEFINITIONS_${_upperConfig})
 		cotire_get_target_compiler_flags(
@@ -2959,6 +2982,7 @@ if (CMAKE_SCRIPT_MODE_FILE)
 	endif()
 	string (TOUPPER "${COTIRE_BUILD_TYPE}" _upperConfig)
 	set (_includeDirs ${COTIRE_TARGET_INCLUDE_DIRECTORIES_${_upperConfig}})
+	set (_systemIncludeDirs ${COTIRE_TARGET_SYSTEM_INCLUDE_DIRECTORIES_${_upperConfig}})
 	set (_compileDefinitions ${COTIRE_TARGET_COMPILE_DEFINITIONS_${_upperConfig}})
 	set (_compileFlags ${COTIRE_TARGET_COMPILE_FLAGS_${_upperConfig}})
 	# check if target has been cotired for actual build type COTIRE_BUILD_TYPE
@@ -3011,7 +3035,9 @@ if (CMAKE_SCRIPT_MODE_FILE)
 			IGNORE_PATH "${COTIRE_TARGET_IGNORE_PATH};${COTIRE_ADDITIONAL_PREFIX_HEADER_IGNORE_PATH}"
 			INCLUDE_PATH ${COTIRE_TARGET_INCLUDE_PATH}
 			IGNORE_EXTENSIONS "${CMAKE_${COTIRE_TARGET_LANGUAGE}_SOURCE_FILE_EXTENSIONS};${COTIRE_ADDITIONAL_PREFIX_HEADER_IGNORE_EXTENSIONS}"
+			INCLUDE_SYSTEM_FLAG "${COTIRE_INCLUDE_SYSTEM_FLAG}"
 			INCLUDE_DIRECTORIES ${_includeDirs}
+			SYSTEM_INCLUDE_DIRECTORIES ${_systemIncludeDirs}
 			COMPILE_DEFINITIONS ${_compileDefinitions}
 			COMPILE_FLAGS ${_compileFlags})
 
@@ -3031,7 +3057,9 @@ if (CMAKE_SCRIPT_MODE_FILE)
 			COMPILER_ID "${CMAKE_${COTIRE_TARGET_LANGUAGE}_COMPILER_ID}"
 			COMPILER_VERSION "${COTIRE_${COTIRE_TARGET_LANGUAGE}_COMPILER_VERSION}"
 			LANGUAGE "${COTIRE_TARGET_LANGUAGE}"
+			INCLUDE_SYSTEM_FLAG "${COTIRE_INCLUDE_SYSTEM_FLAG}"
 			INCLUDE_DIRECTORIES ${_includeDirs}
+			SYSTEM_INCLUDE_DIRECTORIES ${_systemIncludeDirs}
 			COMPILE_DEFINITIONS ${_compileDefinitions}
 			COMPILE_FLAGS ${_compileFlags})
 
