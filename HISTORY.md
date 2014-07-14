@@ -1,3 +1,9 @@
+## 1.6.4 (2014-07-14)
+
+* fix CMake 3.0 compatibility issues.
+* preserve system flag for includes when generating PCH (thanks gjasny).
+* fix bug with setting up `EXPORTS` symbol for shared libraries.
+
 ## 1.6.3 (2014-06-11)
 
 * correctly handle usage requirements for transitive link targets.
