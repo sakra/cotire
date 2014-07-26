@@ -652,7 +652,7 @@ Cotire is not compatible with [Xoreax IncrediBuild][XGE].
 [msvc_pch]:http://msdn.microsoft.com/en-us/library/szfdksca(v=vs.90).aspx
 [msvc_pch_create]:http://msdn.microsoft.com/en-us/library/7zc28563(v=vs.90).aspx
 [msvc_pch_use]:http://msdn.microsoft.com/en-us/library/z0atkd6c(v=vs.90).aspx
-[EoUB]:http://leewinder.co.uk/blog/?p=394
+[EoUB]:http://engineering-game-dev.com/2009/12/15/the-evils-of-unity-builds/
 [pch]:http://en.wikipedia.org/wiki/Precompiled_header
 [scu]:http://en.wikipedia.org/wiki/Single_Compilation_Unit
 [objlib]:http://www.cmake.org/cmake/help/cmake-2-8-docs.html#command:add_library
