@@ -1,3 +1,10 @@
+## 1.6.5 (2014-08-26)
+
+* correctly handle generator expressions used in compile definitions, compile flags and include
+  directories (requires CMake 2.8.12 or newer).
+* fix `-isystem` includes being incorrectly passed to `execute_process` (thanks nickhutchinson).
+* make some error messages more verbose.
+
 ## 1.6.4 (2014-07-14)
 
 * fix CMake 3.0 compatibility issues.
