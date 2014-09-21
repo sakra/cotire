@@ -1,0 +1,68 @@
+diff -rupN fseditor-1.0/CMakeLists.txt fseditor-1.0.cotire/CMakeLists.txt
+--- fseditor-1.0/CMakeLists.txt	2010-10-01 07:43:16.000000000 +0200
++++ fseditor-1.0.cotire/CMakeLists.txt	2014-08-28 18:28:39.000000000 +0200
+@@ -1,6 +1,9 @@
+ CMAKE_MINIMUM_REQUIRED(VERSION 2.8 FATAL_ERROR)
+ PROJECT(FSEditor)
+ 
++include(cotire)
++set_property(DIRECTORY PROPERTY COTIRE_UNITY_LINK_LIBRARIES_INIT "COPY_UNITY")
++
+ INCLUDE(InstallRequiredSystemLibraries)
+ 
+ SET(VERSION_MAJOR 1)
+diff -rupN fseditor-1.0/source/application/CMakeLists.txt fseditor-1.0.cotire/source/application/CMakeLists.txt
+--- fseditor-1.0/source/application/CMakeLists.txt	2010-10-01 07:43:16.000000000 +0200
++++ fseditor-1.0.cotire/source/application/CMakeLists.txt	2014-08-28 18:24:56.000000000 +0200
+@@ -17,3 +17,7 @@ INSTALL(TARGETS fseditor DESTINATION bin
+ 
+ INCLUDE(tr_sources)
+ ADD_TR_SOURCES(${sources})
++
++if (COMMAND cotire)
++	cotire(fseditor)
++endif()
+diff -rupN fseditor-1.0/source/libfstest/CMakeLists.txt fseditor-1.0.cotire/source/libfstest/CMakeLists.txt
+--- fseditor-1.0/source/libfstest/CMakeLists.txt	2010-10-01 07:43:16.000000000 +0200
++++ fseditor-1.0.cotire/source/libfstest/CMakeLists.txt	2014-08-28 18:25:41.000000000 +0200
+@@ -3,3 +3,7 @@ INCLUDE(${QT_USE_FILE})
+ 
+ ADD_LIBRARY(fstest STATIC fstest.h fstest.cpp)
+ SET_TARGET_PROPERTIES(fstest PROPERTIES PROJECT_LABEL "libfstest")
++
++if (COMMAND cotire)
++	cotire(fstest)
++endif()
+diff -rupN fseditor-1.0/source/libmodel/CMakeLists.txt fseditor-1.0.cotire/source/libmodel/CMakeLists.txt
+--- fseditor-1.0/source/libmodel/CMakeLists.txt	2010-10-01 07:43:16.000000000 +0200
++++ fseditor-1.0.cotire/source/libmodel/CMakeLists.txt	2013-10-06 20:05:06.000000000 +0200
+@@ -34,3 +34,7 @@ FSTEST(test_libmodel LibModel)
+ 
+ INCLUDE(tr_sources)
+ ADD_TR_SOURCES(${sources} ${headers} ${moc_headers})
++
++if (COMMAND cotire)
++	cotire(model)
++endif()
+diff -rupN fseditor-1.0/source/libmodelcommands/CMakeLists.txt fseditor-1.0.cotire/source/libmodelcommands/CMakeLists.txt
+--- fseditor-1.0/source/libmodelcommands/CMakeLists.txt	2010-10-01 07:43:16.000000000 +0200
++++ fseditor-1.0.cotire/source/libmodelcommands/CMakeLists.txt	2013-10-06 20:05:11.000000000 +0200
+@@ -18,3 +18,7 @@ TARGET_LINK_LIBRARIES(modelcommands mode
+ 
+ INCLUDE(tr_sources)
+ ADD_TR_SOURCES(${sources} ${headers})
++
++if (COMMAND cotire)
++	cotire(modelcommands)
++endif()
+diff -rupN fseditor-1.0/source/libui/CMakeLists.txt fseditor-1.0.cotire/source/libui/CMakeLists.txt
+--- fseditor-1.0/source/libui/CMakeLists.txt	2010-10-01 07:43:16.000000000 +0200
++++ fseditor-1.0.cotire/source/libui/CMakeLists.txt	2013-10-06 20:05:18.000000000 +0200
+@@ -44,3 +44,7 @@ TARGET_LINK_LIBRARIES(ui model modelcomm
+ 
+ INCLUDE(tr_sources)
+ ADD_TR_SOURCES(${sources} ${headers} ${moc_headers} ${forms})
++
++if (COMMAND cotire)
++	cotire(ui)
++endif()

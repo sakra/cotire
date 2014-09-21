@@ -1,0 +1,74 @@
+diff -rupN fsedit-qt5-master/CMakeLists.txt fsedit-qt5-cotire/CMakeLists.txt
+--- fsedit-qt5-master/CMakeLists.txt	2013-09-25 17:02:56.000000000 +0200
++++ fsedit-qt5-cotire/CMakeLists.txt	2014-08-28 17:59:58.000000000 +0200
+@@ -3,6 +3,9 @@ cmake_minimum_required(VERSION 2.8 FATAL
+ cmake_policy(SET CMP0020 NEW)
+ project(FSEditor)
+ 
++include(cotire)
++set_property(DIRECTORY PROPERTY COTIRE_UNITY_LINK_LIBRARIES_INIT "COPY_UNITY")
++
+ include(InstallRequiredSystemLibraries)
+ 
+ set(VERSION_MAJOR 1)
+diff -rupN fsedit-qt5-master/source/application/CMakeLists.txt fsedit-qt5-cotire/source/application/CMakeLists.txt
+--- fsedit-qt5-master/source/application/CMakeLists.txt	2013-09-25 17:02:56.000000000 +0200
++++ fsedit-qt5-cotire/source/application/CMakeLists.txt	2014-08-28 16:48:42.000000000 +0200
+@@ -20,3 +20,7 @@ install(TARGETS fseditor DESTINATION bin
+ 
+ include(tr_sources)
+ add_tr_sources(${sources})
++
++if (COMMAND cotire)
++	cotire(fseditor)
++endif()
+diff -rupN fsedit-qt5-master/source/libfstest/CMakeLists.txt fsedit-qt5-cotire/source/libfstest/CMakeLists.txt
+--- fsedit-qt5-master/source/libfstest/CMakeLists.txt	2013-09-25 17:02:56.000000000 +0200
++++ fsedit-qt5-cotire/source/libfstest/CMakeLists.txt	2014-08-28 16:49:11.000000000 +0200
+@@ -3,8 +3,12 @@
+ 
+ add_library(fstest STATIC fstest.h fstest.cpp)
+ target_link_libraries(fstest
+-  Qt5::Widgets # ${QT_LIBRARIES}
++  Qt5::Widgets Qt5::Test # ${QT_LIBRARIES}
+   )
+ set_target_properties(fstest
+   PROPERTIES PROJECT_LABEL "libfstest"
+   )
++
++if (COMMAND cotire)
++	cotire(fstest)
++endif()
+diff -rupN fsedit-qt5-master/source/libmodel/CMakeLists.txt fsedit-qt5-cotire/source/libmodel/CMakeLists.txt
+--- fsedit-qt5-master/source/libmodel/CMakeLists.txt	2013-09-25 17:02:56.000000000 +0200
++++ fsedit-qt5-cotire/source/libmodel/CMakeLists.txt	2014-08-28 16:49:18.000000000 +0200
+@@ -37,3 +37,7 @@ fstest(test_libmodel LibModel)
+ 
+ include(tr_sources)
+ add_tr_sources(${sources} ${headers} ${moc_headers})
++
++if (COMMAND cotire)
++	cotire(model)
++endif()
+diff -rupN fsedit-qt5-master/source/libmodelcommands/CMakeLists.txt fsedit-qt5-cotire/source/libmodelcommands/CMakeLists.txt
+--- fsedit-qt5-master/source/libmodelcommands/CMakeLists.txt	2013-09-25 17:02:56.000000000 +0200
++++ fsedit-qt5-cotire/source/libmodelcommands/CMakeLists.txt	2014-08-28 16:49:25.000000000 +0200
+@@ -21,3 +21,7 @@ target_link_libraries(modelcommands
+ 
+ include(tr_sources)
+ add_tr_sources(${sources} ${headers})
++
++if (COMMAND cotire)
++	cotire(modelcommands)
++endif()
+diff -rupN fsedit-qt5-master/source/libui/CMakeLists.txt fsedit-qt5-cotire/source/libui/CMakeLists.txt
+--- fsedit-qt5-master/source/libui/CMakeLists.txt	2013-09-25 17:02:56.000000000 +0200
++++ fsedit-qt5-cotire/source/libui/CMakeLists.txt	2014-08-28 12:03:28.000000000 +0200
+@@ -48,3 +48,7 @@ target_link_libraries(ui
+ 
+ include(tr_sources)
+ add_tr_sources(${sources} ${headers} ${moc_headers} ${forms})
++
++if (COMMAND cotire)
++	cotire(ui)
++endif()

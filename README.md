@@ -140,7 +140,7 @@ known issues
 [vslstd]:http://msdn.microsoft.com/vstudio/
 [xcdt]:http://developer.apple.com/tools/xcode/
 [PCHH]:http://gcc.gnu.org/wiki/PCHHaters
-[EoUB]:http://leewinder.co.uk/blog/?p=394
+[EoUB]:http://engineering-game-dev.com/2009/12/15/the-evils-of-unity-builds/
 [jom]:http://qt-project.org/wiki/jom
 [intel]:http://software.intel.com/en-us/c-compilers
 [XGE]:http://www.incredibuild.com

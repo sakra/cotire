@@ -607,6 +607,12 @@ the property value from its enclosing directory. To make all targets in the proj
     ...
     set_property(DIRECTORY PROPERTY COTIRE_UNITY_LINK_LIBRARIES_INIT "COPY_UNITY")
 
+### using cotire with Qt
+
+Cotire is compatible with both Qt4 and Qt5 projects that use CMake as build system. The `Patches`
+directory contains examples for the [Qt4][fsedit_qt4] and [Qt5][fsedit_qt5] based variants of the
+*FSEditor* sample Qt application.
+
 cotire usage restrictions
 -------------------------
 
@@ -647,6 +653,8 @@ Cotire is not compatible with [Xoreax IncrediBuild][XGE].
 [ccch]:http://ccache.samba.org/
 [ccch_pch]:http://ccache.samba.org/manual.html#_precompiled_headers
 [clang_pch]:http://clang.llvm.org/docs/UsersManual.html#precompiledheaders
+[fsedit_qt4]:http://www.vikingsoft.eu/fseditor.html
+[fsedit_qt5]:https://github.com/joonhwan/fsedit-qt5
 [gcc_pch]:http://gcc.gnu.org/onlinedocs/gcc/Precompiled-Headers.html
 [kde4macros]:http://kbfxmenu.googlecode.com/svn/trunk/kbfx3/cmakemodules/KDE4Macros.cmake
 [msvc_pch]:http://msdn.microsoft.com/en-us/library/szfdksca(v=vs.90).aspx

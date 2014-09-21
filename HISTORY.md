@@ -1,3 +1,11 @@
+## 1.6.6 (2014-09-21)
+
+* fix GCC issue with prefix header generation when source files are missing.
+* fix bug where some target properties were not properly propagated to the generated unity target.
+* use `target_link_libraries` to set up the unity target link libraries.
+* add Qt4 and Qt5 examples to the `Patches` directory.
+* documentation updates.
+
 ## 1.6.5 (2014-08-26)
 
 * correctly handle generator expressions used in compile definitions, compile flags and include

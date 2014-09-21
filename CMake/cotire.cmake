@@ -45,7 +45,7 @@ if (NOT CMAKE_SCRIPT_MODE_FILE)
 endif()
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.6.5")
+set (COTIRE_CMAKE_MODULE_VERSION "1.6.6")
 
 include(CMakeParseArguments)
 include(ProcessorCount)
@@ -1890,8 +1890,8 @@ function (cotire_get_prefix_header_dependencies _language _target _dependencySou
 	# depend on target source files marked with custom COTIRE_DEPENDENCY property
 	set (_dependencySources "")
 	cotire_get_objects_with_property_on(_dependencySources COTIRE_DEPENDENCY SOURCE ${ARGN})
-	if (CMAKE_${_language}_COMPILER_ID MATCHES "Clang")
-		# Clang raises a fatal error if a file is not found during preprocessing
+	if (CMAKE_${_language}_COMPILER_ID MATCHES "GNU|Clang")
+		# GCC and clang raise a fatal error if a file is not found during preprocessing
 		# thus we depend on target's generated source files for prefix header generation
 		cotire_get_objects_with_property_on(_generatedSources GENERATED SOURCE ${ARGN})
 		if (_generatedSources)
@@ -2712,9 +2712,10 @@ function (cotire_setup_unity_build_target _languages _configurations _targetSour
 		C_VISIBILITY_PRESET CXX_VISIBILITY_PRESET VISIBILITY_INLINES_HIDDEN)
 	# copy interface stuff
 	cotire_copy_set_properites("${_configurations}" TARGET ${_target} ${_unityTargetName}
-		COMPATIBLE_INTERFACE_BOOL COMPATIBLE_INTERFACE_STRING
+		COMPATIBLE_INTERFACE_BOOL COMPATIBLE_INTERFACE_NUMBER_MAX COMPATIBLE_INTERFACE_NUMBER_MIN COMPATIBLE_INTERFACE_STRING
 		INTERFACE_COMPILE_DEFINITIONS INTERFACE_COMPILE_OPTIONS INTERFACE_INCLUDE_DIRECTORIES
-		INTERFACE_LINK_LIBRARIES INTERFACE_POSITION_INDEPENDENT_CODE INTERFACE_SYSTEM_INCLUDE_DIRECTORIES)
+		INTERFACE_POSITION_INDEPENDENT_CODE INTERFACE_SYSTEM_INCLUDE_DIRECTORIES
+		INTERFACE_AUTOUIC_OPTIONS)
 	# copy link stuff
 	cotire_copy_set_properites("${_configurations}" TARGET ${_target} ${_unityTargetName}
 		BUILD_WITH_INSTALL_RPATH INSTALL_RPATH INSTALL_RPATH_USE_LINK_PATH SKIP_BUILD_RPATH
@@ -2727,7 +2728,8 @@ function (cotire_setup_unity_build_target _languages _configurations _targetSour
 		NO_SONAME SOVERSION VERSION)
 	# copy Qt stuff
 	cotire_copy_set_properites("${_configurations}" TARGET ${_target} ${_unityTargetName}
-		AUTOMOC AUTOMOC_MOC_OPTIONS)
+		AUTOMOC AUTOMOC_MOC_OPTIONS AUTOUIC AUTOUIC_OPTIONS AUTORCC AUTORCC_OPTIONS
+		AUTOGEN_TARGET_DEPENDS)
 	# copy cmake stuff
 	cotire_copy_set_properites("${_configurations}" TARGET ${_target} ${_unityTargetName}
 		IMPLICIT_DEPENDS_INCLUDE_TRANSFORM RULE_LAUNCH_COMPILE RULE_LAUNCH_CUSTOM RULE_LAUNCH_LINK)
@@ -2847,6 +2849,24 @@ function (cotire_target _target)
 	endif()
 endfunction(cotire_target)
 
+function (cotire_map_libraries _strategy _mappedLibrariesVar)
+	set (_mappedLibraries "")
+	foreach (_library ${ARGN})
+		if (TARGET "${_library}" AND "${_strategy}" MATCHES "COPY_UNITY")
+			get_target_property(_libraryUnityTargetName ${_library} COTIRE_UNITY_TARGET_NAME)
+			if (TARGET "${_libraryUnityTargetName}")
+				list (APPEND _mappedLibraries "${_libraryUnityTargetName}")
+			else()
+				list (APPEND _mappedLibraries "${_library}")
+			endif()
+		else()
+			list (APPEND _mappedLibraries "${_library}")
+		endif()
+	endforeach()
+	list (REMOVE_DUPLICATES _mappedLibraries)
+	set (${_mappedLibrariesVar} ${_mappedLibraries} PARENT_SCOPE)
+endfunction()
+
 function (cotire_target_link_libraries _target)
 	get_target_property(_unityTargetName ${_target} COTIRE_UNITY_TARGET_NAME)
 	if (TARGET "${_unityTargetName}")
@@ -2857,29 +2877,15 @@ function (cotire_target_link_libraries _target)
 		if ("${_linkLibrariesStrategy}" MATCHES "^(COPY|COPY_UNITY)$")
 			if (CMAKE_VERSION VERSION_LESS "2.8.11")
 				message (WARNING "cotire: unity target link strategy ${_linkLibrariesStrategy} requires CMake 2.8.11 or later. Defaulting to NONE for ${_target}.")
-				return()
-			endif()
-			get_target_property(_linkLibraries ${_target} LINK_LIBRARIES)
-			if (_linkLibraries)
+			else()
+				get_target_property(_linkLibraries ${_target} LINK_LIBRARIES)
+				get_target_property(_interfaceLinkLibraries ${_target} INTERFACE_LINK_LIBRARIES)
+				cotire_map_libraries("${_linkLibrariesStrategy}" _unityLinkLibraries ${_linkLibraries} ${_interfaceLinkLibraries})
 				if (COTIRE_DEBUG)
-					message (STATUS "target ${_target} link libraries: ${_linkLibraries}")
+					message (STATUS "unity target ${_unityTargetName} libraries: ${_unityLinkLibraries}")
 				endif()
-				set (_unityTargetLibraries "")
-				foreach (_library ${_linkLibraries})
-					if (TARGET "${_library}" AND "${_linkLibrariesStrategy}" MATCHES "COPY_UNITY")
-						get_target_property(_libraryUnityTargetName ${_library} COTIRE_UNITY_TARGET_NAME)
-						if (TARGET "${_libraryUnityTargetName}")
-							list (APPEND _unityTargetLibraries "${_libraryUnityTargetName}")
-						else()
-							list (APPEND _unityTargetLibraries "${_library}")
-						endif()
-					else()
-						list (APPEND _unityTargetLibraries "${_library}")
-					endif()
-				endforeach()
-				set_property(TARGET ${_unityTargetName} APPEND PROPERTY LINK_LIBRARIES ${_unityTargetLibraries})
-				if (COTIRE_DEBUG)
-					message (STATUS "set unity target ${_unityTargetName} link libraries: ${_unityTargetLibraries}")
+				if (_unityLinkLibraries)
+					target_link_libraries(${_unityTargetName} ${_unityLinkLibraries})
 				endif()
 			endif()
 		endif()
