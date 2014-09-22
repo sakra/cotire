@@ -116,6 +116,8 @@ modifications, because they [break][EoUB] the use of some C and C++ language fea
 Generally, modern C++ code which makes heavy use of header-only libraries will profit the most from
 cotiring.
 
+This [blog post][shrp] discusses speedup results obtained for real-world projects.
+
 known issues
 ------------
 
@@ -144,3 +146,4 @@ known issues
 [jom]:http://qt-project.org/wiki/jom
 [intel]:http://software.intel.com/en-us/c-compilers
 [XGE]:http://www.incredibuild.com
+[shrp]:http://unriskinsight.blogspot.co.at/2014/09/sharpen-your-tools.html
