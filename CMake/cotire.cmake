@@ -44,8 +44,15 @@ if (NOT CMAKE_SCRIPT_MODE_FILE)
 	cmake_policy(POP)
 endif()
 
+if (NOT CMAKE_VERSION VERSION_LESS "3.1.0")
+	# include TARGET_OBJECTS expressions in a target's SOURCES property
+	cmake_policy(SET CMP0051 NEW)
+	# only interpret if() arguments as variables or keywords when unquoted
+	cmake_policy(SET CMP0054 NEW)
+endif()
+
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.6.6")
+set (COTIRE_CMAKE_MODULE_VERSION "1.6.7")
 
 include(CMakeParseArguments)
 include(ProcessorCount)
@@ -82,6 +89,22 @@ function (cotire_determine_compiler_version _language _versionPrefix)
 		if (COTIRE_DEBUG)
 			message (STATUS "${CMAKE_${_language}_COMPILER} version ${${_versionPrefix}_VERSION}")
 		endif()
+	endif()
+endfunction()
+
+function (cotire_get_configuration_types _configsVar)
+	set (_configs "")
+	if (CMAKE_CONFIGURATION_TYPES)
+		list (APPEND _configs ${CMAKE_CONFIGURATION_TYPES})
+	endif()
+	if (CMAKE_BUILD_TYPE)
+		list (APPEND _configs "${CMAKE_BUILD_TYPE}")
+	endif()
+	if (_configs)
+		list (REMOVE_DUPLICATES _configs)
+		set (${_configsVar} ${_configs} PARENT_SCOPE)
+	else()
+		set (${_configsVar} "None" PARENT_SCOPE)
 	endif()
 endfunction()
 
@@ -135,7 +158,15 @@ function (cotire_filter_language_source_files _language _sourceFilesVar _exclude
 		message (STATUS "${_language} ignore extensions: ${_ignoreExtensions}")
 		message (STATUS "${_language} exclude extensions: ${_excludeExtensions}")
 	endif()
-	foreach (_sourceFile ${ARGN})
+	if (CMAKE_VERSION VERSION_LESS "3.1.0")
+		set (_allSourceFiles ${ARGN})
+	else()
+		# as of CMake 3.1 target sources may contain generator expressions
+		# since we cannot obtain required property information about source files added
+		# through generator expressions at configure time, we filter them out
+		string (GENEX_STRIP "${ARGN}" _allSourceFiles)
+	endif()
+	foreach (_sourceFile ${_allSourceFiles})
 		get_source_file_property(_sourceIsHeaderOnly "${_sourceFile}" HEADER_FILE_ONLY)
 		get_source_file_property(_sourceIsExternal "${_sourceFile}" EXTERNAL_OBJECT)
 		get_source_file_property(_sourceIsSymbolic "${_sourceFile}" SYMBOLIC)
@@ -466,7 +497,6 @@ function (cotire_get_target_include_directories _config _language _targetSourceD
 		if (_targetDirs)
 			list (APPEND _systemIncludeDirs ${_targetDirs})
 		endif()
-
 		# interface include directories from linked library targets
 		cotire_get_target_link_libraries_for_usage_requirements(${_target} _linkLibraries)
 		foreach (_library ${_linkLibraries})
@@ -1124,7 +1154,7 @@ function (cotire_generate_unity_source _unityFile)
 	set(_options "")
 	set(_oneValueArgs LANGUAGE)
 	set(_multiValueArgs
-		DEPENDS SOURCES_COMPILE_DEFINITIONS
+		DEPENDS SOURCE_LOCATIONS SOURCES_COMPILE_DEFINITIONS
 		PRE_UNDEFS SOURCES_PRE_UNDEFS POST_UNDEFS SOURCES_POST_UNDEFS PROLOGUE EPILOGUE)
 	cmake_parse_arguments(_option "${_options}" "${_oneValueArgs}" "${_multiValueArgs}" ${ARGN})
 	if (_option_DEPENDS)
@@ -1158,6 +1188,7 @@ function (cotire_generate_unity_source _unityFile)
 		endif()
 	endif()
 	set (_compileUndefinitions "")
+	set (_index 0)
 	foreach (_sourceFile ${_sourceFiles})
 		cotire_get_source_compile_definitions(
 			"${_option_CONFIGURATION}" "${_option_LANGUAGE}" "${_sourceFile}" _compileDefinitions
@@ -1189,11 +1220,18 @@ function (cotire_generate_unity_source _unityFile)
 				list (INSERT _compileUndefinitions 0 "${_definition}")
 			endif()
 		endforeach()
-		get_filename_component(_sourceFile "${_sourceFile}" ABSOLUTE)
-		if (WIN32)
-			file (TO_NATIVE_PATH "${_sourceFile}" _sourceFile)
+		if (_option_SOURCE_LOCATIONS)
+			# use explicitly provided source file location
+			list (GET _option_SOURCE_LOCATIONS ${_index} _sourceFileLocation)
+		else()
+			# use absolute path as source file location
+			get_filename_component(_sourceFileLocation "${_sourceFile}" ABSOLUTE)
 		endif()
-		list (APPEND _contents "#include \"${_sourceFile}\"")
+		if (WIN32)
+			file (TO_NATIVE_PATH "${_sourceFileLocation}" _sourceFileLocation)
+		endif()
+		list (APPEND _contents "#include \"${_sourceFileLocation}\"")
+		math (EXPR _index "${_index} + 1")
 	endforeach()
 	if (_compileUndefinitions)
 		cotire_append_undefs(_contents ${_compileUndefinitions})
@@ -1655,21 +1693,15 @@ function (cotire_check_precompiled_header_support _language _targetSourceDir _ta
 		set (${_msgVar} "${_unsupportedCompiler}." PARENT_SCOPE)
 	endif()
 	if (CMAKE_${_language}_COMPILER MATCHES "ccache")
-		if (NOT "$ENV{CCACHE_SLOPPINESS}" MATCHES "time_macros")
+		if (NOT "$ENV{CCACHE_SLOPPINESS}" MATCHES "time_macros|pch_defines")
 			set (${_msgVar}
-				"ccache requires the environment variable CCACHE_SLOPPINESS to be set to time_macros."
+				"ccache requires the environment variable CCACHE_SLOPPINESS to be set to \"pch_defines,time_macros\"."
 				PARENT_SCOPE)
 		endif()
 	endif()
 	if (APPLE)
 		# PCH compilation not supported by GCC / Clang for multi-architecture builds (e.g., i386, x86_64)
-		if (CMAKE_CONFIGURATION_TYPES)
-			set (_configs ${CMAKE_CONFIGURATION_TYPES})
-		elseif (CMAKE_BUILD_TYPE)
-			set (_configs ${CMAKE_BUILD_TYPE})
-		else()
-			set (_configs "None")
-		endif()
+		cotire_get_configuration_types(_configs)
 		foreach (_config ${_configs})
 			set (_targetFlags "")
 			cotire_get_target_compile_flags("${_config}" "${_language}" "${_targetSourceDir}" "${_target}" _targetFlags)
@@ -1906,6 +1938,7 @@ endfunction()
 
 function (cotire_generate_target_script _language _configurations _targetSourceDir _targetBinaryDir _target _targetScriptVar _targetConfigScriptVar)
 	set (COTIRE_TARGET_SOURCES ${ARGN})
+	cotire_get_source_file_property_values(COTIRE_TARGET_SOURCE_LOCATIONS LOCATION ${COTIRE_TARGET_SOURCES})
 	cotire_get_prefix_header_dependencies(${_language} ${_target} COTIRE_TARGET_PREFIX_DEPENDS ${COTIRE_TARGET_SOURCES})
 	cotire_get_unity_source_dependencies(${_language} ${_target} COTIRE_TARGET_UNITY_DEPENDS ${COTIRE_TARGET_SOURCES})
 	# set up variables to be configured
@@ -1940,7 +1973,7 @@ function (cotire_generate_target_script _language _configurations _targetSourceD
 	set (_contents "")
 	set (_contentsHasGeneratorExpressions FALSE)
 	foreach (_var IN LISTS _matchVars ITEMS
-		MSVC CMAKE_GENERATOR CMAKE_BUILD_TYPE CMAKE_CONFIGURATION_TYPES
+		XCODE MSVC CMAKE_GENERATOR CMAKE_BUILD_TYPE CMAKE_CONFIGURATION_TYPES
 		CMAKE_${_language}_COMPILER_ID CMAKE_${_language}_COMPILER CMAKE_${_language}_COMPILER_ARG1
 		CMAKE_${_language}_SOURCE_FILE_EXTENSIONS)
 		if (DEFINED ${_var})
@@ -2169,13 +2202,15 @@ function (cotire_setup_target_pch_usage _languages _targetSourceDir _target _who
 			# see cotire_setup_pch_file_inclusion
 			if (NOT CMAKE_${_language}_COMPILER_ID MATCHES "MSVC|Intel")
 				get_property(_prefixFile TARGET ${_target} PROPERTY COTIRE_${_language}_PREFIX_HEADER)
-				get_property(_pchFile TARGET ${_target} PROPERTY COTIRE_${_language}_PRECOMPILED_HEADER)
-				set (_flags "")
-				cotire_determine_compiler_version("${_language}" COTIRE_${_language}_COMPILER)
-				cotire_add_prefix_pch_inclusion_flags(
-					"${_language}" "${CMAKE_${_language}_COMPILER_ID}" "${COTIRE_${_language}_COMPILER_VERSION}"
-					"${_prefixFile}" "${_pchFile}" _flags)
-				set_property(TARGET ${_target} APPEND_STRING PROPERTY COMPILE_FLAGS " ${_flags} ")
+				if (_prefixFile)
+					set (_flags "")
+					cotire_determine_compiler_version("${_language}" COTIRE_${_language}_COMPILER)
+					get_property(_pchFile TARGET ${_target} PROPERTY COTIRE_${_language}_PRECOMPILED_HEADER)
+					cotire_add_prefix_pch_inclusion_flags(
+						"${_language}" "${CMAKE_${_language}_COMPILER_ID}" "${COTIRE_${_language}_COMPILER_VERSION}"
+						"${_prefixFile}" "${_pchFile}" _flags)
+					set_property(TARGET ${_target} APPEND_STRING PROPERTY COMPILE_FLAGS " ${_flags} ")
+				endif()
 			endif()
 		endif()
 	endif()
@@ -2187,13 +2222,19 @@ function (cotire_setup_unity_generation_commands _language _targetSourceDir _tar
 	foreach (_unityFile ${_unityFiles})
 		file (RELATIVE_PATH _unityFileRelPath "${CMAKE_BINARY_DIR}" "${_unityFile}")
 		set_property (SOURCE "${_unityFile}" PROPERTY GENERATED TRUE)
-		# set up compiled unity source dependencies
+		# set up compiled unity source dependencies via OBJECT_DEPENDS
 		# this ensures that missing source files are generated before the unity file is compiled
 		if (COTIRE_DEBUG AND _dependencySources)
 			message (STATUS "${_unityFile} OBJECT_DEPENDS ${_dependencySources}")
 		endif()
 		if (_dependencySources)
-			set_property (SOURCE "${_unityFile}" PROPERTY OBJECT_DEPENDS ${_dependencySources})
+			# the OBJECT_DEPENDS property requires a list of full paths
+			set (_objectDependsPaths "")
+			foreach (_sourceFile ${_dependencySources})
+				get_source_file_property(_sourceLocation "${_sourceFile}" LOCATION)
+				list (APPEND _objectDependsPaths "${_sourceLocation}")
+			endforeach()
+			set_property (SOURCE "${_unityFile}" PROPERTY OBJECT_DEPENDS ${_objectDependsPaths})
 		endif()
 		if (WIN32 AND CMAKE_${_language}_COMPILER_ID MATCHES "MSVC|Intel")
 			# unity file compilation results in potentially huge object file, thus use /bigobj by default unter MSVC and Windows Intel
@@ -2201,13 +2242,19 @@ function (cotire_setup_unity_generation_commands _language _targetSourceDir _tar
 		endif()
 		cotire_set_cmd_to_prologue(_unityCmd)
 		list (APPEND _unityCmd -P "${COTIRE_CMAKE_MODULE_FILE}" "unity" "${_targetConfigScript}" "${_unityFile}")
+		if (CMAKE_VERSION VERSION_LESS "3.1.0")
+			set (_unityCmdDepends "${_targetScript}")
+		else()
+			# CMake 3.1.0 supports generator expressions in arguments to DEPENDS
+			set (_unityCmdDepends "${_targetConfigScript}")
+		endif()
 		if (COTIRE_DEBUG)
-			message (STATUS "add_custom_command: OUTPUT ${_unityFile} COMMAND ${_unityCmd} DEPENDS ${_targetScript}")
+			message (STATUS "add_custom_command: OUTPUT ${_unityFile} COMMAND ${_unityCmd} DEPENDS ${_unityCmdDepends}")
 		endif()
 		add_custom_command(
 			OUTPUT "${_unityFile}"
 			COMMAND ${_unityCmd}
-			DEPENDS "${_targetScript}"
+			DEPENDS ${_unityCmdDepends}
 			COMMENT "Generating ${_language} unity source ${_unityFileRelPath}"
 			WORKING_DIRECTORY "${_targetSourceDir}" VERBATIM)
 		list (APPEND ${_cmdsVar} COMMAND ${_unityCmd})
@@ -2383,12 +2430,13 @@ function (cotire_make_target_message _target _languages _disableMsg _targetMsgVa
 	set (${_targetMsgVar} "${_targetMsg}" PARENT_SCOPE)
 endfunction()
 
-function (cotire_choose_target_languages _targetSourceDir _target _targetLanguagesVar)
+function (cotire_choose_target_languages _targetSourceDir _target _targetLanguagesVar _wholeTargetVar)
 	set (_languages ${ARGN})
 	set (_allSourceFiles "")
 	set (_allExcludedSourceFiles "")
 	set (_allCotiredSourceFiles "")
 	set (_targetLanguages "")
+	set (_pchEligibleTargetLanguages "")
 	get_target_property(_targetType ${_target} TYPE)
 	get_target_property(_targetSourceFiles ${_target} SOURCES)
 	get_target_property(_targetUsePCH ${_target} COTIRE_ENABLE_PRECOMPILED_HEADER)
@@ -2418,6 +2466,10 @@ function (cotire_choose_target_languages _targetSourceDir _target _targetLanguag
 		if (_sourceFiles)
 			list (APPEND _allSourceFiles ${_sourceFiles})
 		endif()
+		list (LENGTH _sourceFiles _numberOfSources)
+		if (NOT _numberOfSources LESS ${COTIRE_MINIMUM_NUMBER_OF_TARGET_SOURCES})
+			list (APPEND _pchEligibleTargetLanguages ${_language})
+		endif()
 		if (_excludedSources)
 			list (APPEND _allExcludedSourceFiles ${_excludedSources})
 		endif()
@@ -2433,11 +2485,7 @@ function (cotire_choose_target_languages _targetSourceDir _target _targetLanguag
 		set (_targetAddSCU FALSE)
 	endif()
 	if (_targetUsePCH)
-		list (LENGTH _allSourceFiles _numberOfSources)
-		if (_numberOfSources LESS ${COTIRE_MINIMUM_NUMBER_OF_TARGET_SOURCES})
-			set (_disableMsg "Too few applicable sources.")
-			set (_targetUsePCH FALSE)
-		elseif (_allCotiredSourceFiles)
+		if (_allCotiredSourceFiles)
 			cotire_get_source_file_property_values(_cotireTargets COTIRE_TARGET ${_allCotiredSourceFiles})
 			list (REMOVE_DUPLICATES _cotireTargets)
 			string (REPLACE ";" ", " _cotireTargetsStr "${_cotireTargets}")
@@ -2445,6 +2493,9 @@ function (cotire_choose_target_languages _targetSourceDir _target _targetLanguag
 			set (_disableMsg "${_disableMsg} Set target property COTIRE_ENABLE_PRECOMPILED_HEADER to FALSE for targets ${_target},")
 			set (_disableMsg "${_disableMsg} ${_cotireTargetsStr} to get a workable build system.")
 			set (_targetMsgLevel SEND_ERROR)
+			set (_targetUsePCH FALSE)
+		elseif (NOT _pchEligibleTargetLanguages)
+			set (_disableMsg "Too few applicable sources.")
 			set (_targetUsePCH FALSE)
 		elseif (XCODE AND _allExcludedSourceFiles)
 			# for Xcode, we cannot apply the precompiled header to individual sources, only to the whole target
@@ -2469,6 +2520,12 @@ function (cotire_choose_target_languages _targetSourceDir _target _targetLanguag
 			set (COTIREMSG_${_target} "${_targetMsg}" CACHE INTERNAL "${_target} cotire message.")
 			message (${_targetMsgLevel} "${_targetMsg}")
 		endif()
+	endif()
+	list (LENGTH _targetLanguages _numberOfLanguages)
+	if (_numberOfLanguages GREATER 1 OR _allExcludedSourceFiles)
+		set (${_wholeTargetVar} FALSE PARENT_SCOPE)
+	else()
+		set (${_wholeTargetVar} TRUE PARENT_SCOPE)
 	endif()
 	set (${_targetLanguagesVar} ${_targetLanguages} PARENT_SCOPE)
 endfunction()
@@ -2497,7 +2554,7 @@ function (cotire_compute_unity_max_number_of_includes _target _maxIncludesVar)
 	set (${_maxIncludesVar} ${_maxIncludes} PARENT_SCOPE)
 endfunction()
 
-function (cotire_process_target_language _language _configurations _targetSourceDir _targetBinaryDir _target _wholeTargetVar _cmdsVar)
+function (cotire_process_target_language _language _configurations _targetSourceDir _targetBinaryDir _target _wholeTarget _cmdsVar)
 	set (${_cmdsVar} "" PARENT_SCOPE)
 	get_target_property(_targetSourceFiles ${_target} SOURCES)
 	set (_sourceFiles "")
@@ -2507,7 +2564,6 @@ function (cotire_process_target_language _language _configurations _targetSource
 	if (NOT _sourceFiles AND NOT _cotiredSources)
 		return()
 	endif()
-	set (_wholeTarget ${${_wholeTargetVar}})
 	set (_cmds "")
 	# check for user provided unity source file list
 	get_property(_unitySourceFiles TARGET ${_target} PROPERTY COTIRE_${_language}_UNITY_SOURCE_INIT)
@@ -2534,22 +2590,24 @@ function (cotire_process_target_language _language _configurations _targetSource
 			cotire_setup_prefix_generation_from_unity_command(
 				${_language} ${_target} "${_targetSourceDir}" "${_targetConfigScript}" "${_prefixFile}" "${_unityFiles}" _cmds ${_unitySourceFiles})
 		endif()
-		get_target_property(_targetUsePCH ${_target} COTIRE_ENABLE_PRECOMPILED_HEADER)
+		# check if selected language has enough sources at all
+		list (LENGTH _sourceFiles _numberOfSources)
+		if (_numberOfSources LESS ${COTIRE_MINIMUM_NUMBER_OF_TARGET_SOURCES})
+			set (_targetUsePCH FALSE)
+		else()
+			get_target_property(_targetUsePCH ${_target} COTIRE_ENABLE_PRECOMPILED_HEADER)
+		endif()
 		if (_targetUsePCH)
 			cotire_make_pch_file_path(${_language} "${_targetSourceDir}" ${_target} _pchFile)
 			if (_pchFile)
 				cotire_setup_pch_file_compilation(
 					${_language} ${_target} "${_targetSourceDir}" "${_targetConfigScript}" "${_prefixFile}" "${_pchFile}" ${_sourceFiles})
-				if (_excludedSources)
-					set (_wholeTarget FALSE)
-				endif()
 				cotire_setup_pch_file_inclusion(
 					${_language} ${_target} ${_wholeTarget} "${_prefixFile}" "${_pchFile}" ${_sourceFiles})
 			endif()
 		elseif (_prefixHeaderFiles)
-			# user provided prefix header must be included
-			cotire_setup_prefix_file_inclusion(
-				${_language} ${_target} "${_prefixFile}" ${_sourceFiles})
+			# user provided prefix header must be included unconditionally
+			cotire_setup_prefix_file_inclusion(${_language} ${_target} "${_prefixFile}" ${_sourceFiles})
 		endif()
 	endif()
 	# mark target as cotired for language
@@ -2560,7 +2618,6 @@ function (cotire_process_target_language _language _configurations _targetSource
 			set_property(TARGET ${_target} PROPERTY COTIRE_${_language}_PRECOMPILED_HEADER "${_pchFile}")
 		endif()
 	endif()
-	set (${_wholeTargetVar} ${_wholeTarget} PARENT_SCOPE)
 	set (${_cmdsVar} ${_cmds} PARENT_SCOPE)
 endfunction()
 
@@ -2777,13 +2834,7 @@ function (cotire_target _target)
 		get_property (_option_LANGUAGES GLOBAL PROPERTY ENABLED_LANGUAGES)
 	endif()
 	if (NOT _option_CONFIGURATIONS)
-		if (CMAKE_CONFIGURATION_TYPES)
-			set (_option_CONFIGURATIONS ${CMAKE_CONFIGURATION_TYPES})
-		elseif (CMAKE_BUILD_TYPE)
-			set (_option_CONFIGURATIONS "${CMAKE_BUILD_TYPE}")
-		else()
-			set (_option_CONFIGURATIONS "None")
-		endif()
+		cotire_get_configuration_types(_option_CONFIGURATIONS)
 	endif()
 	# trivial checks
 	get_target_property(_imported ${_target} IMPORTED)
@@ -2816,20 +2867,14 @@ function (cotire_target _target)
 		endif()
 	endif()
 	# choose languages that apply to the target
-	cotire_choose_target_languages("${_option_SOURCE_DIR}" "${_target}" _targetLanguages ${_option_LANGUAGES})
+	cotire_choose_target_languages("${_option_SOURCE_DIR}" "${_target}" _targetLanguages _wholeTarget ${_option_LANGUAGES})
 	if (NOT _targetLanguages)
 		return()
-	endif()
-	list (LENGTH _targetLanguages _numberOfLanguages)
-	if (_numberOfLanguages GREATER 1)
-		set (_wholeTarget FALSE)
-	else()
-		set (_wholeTarget TRUE)
 	endif()
 	set (_cmds "")
 	foreach (_language ${_targetLanguages})
 		cotire_process_target_language("${_language}" "${_option_CONFIGURATIONS}"
-			"${_option_SOURCE_DIR}" "${_option_BINARY_DIR}" ${_target} _wholeTarget _cmd)
+			"${_option_SOURCE_DIR}" "${_option_BINARY_DIR}" ${_target} ${_wholeTarget} _cmd)
 		if (_cmd)
 			list (APPEND _cmds ${_cmd})
 		endif()
@@ -2853,6 +2898,7 @@ function (cotire_map_libraries _strategy _mappedLibrariesVar)
 	set (_mappedLibraries "")
 	foreach (_library ${ARGN})
 		if (TARGET "${_library}" AND "${_strategy}" MATCHES "COPY_UNITY")
+			# use target's corresponding unity target, if available
 			get_target_property(_libraryUnityTargetName ${_library} COTIRE_UNITY_TARGET_NAME)
 			if (TARGET "${_libraryUnityTargetName}")
 				list (APPEND _mappedLibraries "${_libraryUnityTargetName}")
@@ -2878,9 +2924,16 @@ function (cotire_target_link_libraries _target)
 			if (CMAKE_VERSION VERSION_LESS "2.8.11")
 				message (WARNING "cotire: unity target link strategy ${_linkLibrariesStrategy} requires CMake 2.8.11 or later. Defaulting to NONE for ${_target}.")
 			else()
+				set (_unityLinkLibraries "")
 				get_target_property(_linkLibraries ${_target} LINK_LIBRARIES)
+				if (_linkLibraries)
+					list (APPEND _unityLinkLibraries ${_linkLibraries})
+				endif()
 				get_target_property(_interfaceLinkLibraries ${_target} INTERFACE_LINK_LIBRARIES)
-				cotire_map_libraries("${_linkLibrariesStrategy}" _unityLinkLibraries ${_linkLibraries} ${_interfaceLinkLibraries})
+				if (_interfaceLinkLibraries)
+					list (APPEND _unityLinkLibraries ${_interfaceLinkLibraries})
+				endif()
+				cotire_map_libraries("${_linkLibrariesStrategy}" _unityLinkLibraries ${_unityLinkLibraries})
 				if (COTIRE_DEBUG)
 					message (STATUS "unity target ${_unityTargetName} libraries: ${_unityLinkLibraries}")
 				endif()
@@ -3026,12 +3079,14 @@ if (CMAKE_SCRIPT_MODE_FILE)
 	list (FIND COTIRE_TARGET_CONFIGURATION_TYPES "${COTIRE_BUILD_TYPE}" _index)
 	if (_index GREATER -1)
 		set (_sources ${COTIRE_TARGET_SOURCES})
+		set (_sourceLocations ${COTIRE_TARGET_SOURCE_LOCATIONS})
 		set (_sourcesDefinitions ${COTIRE_TARGET_SOURCES_COMPILE_DEFINITIONS_${_upperConfig}})
 	else()
 		if (COTIRE_DEBUG)
 			message (STATUS "COTIRE_BUILD_TYPE=${COTIRE_BUILD_TYPE} not cotired (${COTIRE_TARGET_CONFIGURATION_TYPES})")
 		endif()
 		set (_sources "")
+		set (_sourceLocations "")
 		set (_sourcesDefinitions "")
 	endif()
 	set (_targetPreUndefs ${COTIRE_TARGET_PRE_UNDEFS})
@@ -3041,18 +3096,36 @@ if (CMAKE_SCRIPT_MODE_FILE)
 
 	if ("${COTIRE_ARGV1}" STREQUAL "unity")
 
+		if (XCODE)
+			# executing pre-build action under Xcode, check dependency on target script
+			set (_dependsOption DEPENDS "${COTIRE_ARGV2}")
+		else()
+			# executing custom command, no need to re-check for dependencies
+			set (_dependsOption "")
+		endif()
+
 		cotire_select_unity_source_files("${COTIRE_ARGV3}" _sources ${_sources})
+
 		cotire_generate_unity_source(
 			"${COTIRE_ARGV3}" ${_sources}
 			LANGUAGE "${COTIRE_TARGET_LANGUAGE}"
-			DEPENDS "${COTIRE_ARGV0}" "${COTIRE_ARGV2}"
+			SOURCE_LOCATIONS ${_sourceLocations}
 			SOURCES_COMPILE_DEFINITIONS ${_sourcesDefinitions}
 			PRE_UNDEFS ${_targetPreUndefs}
 			POST_UNDEFS ${_targetPostUndefs}
 			SOURCES_PRE_UNDEFS ${_sourcesPreUndefs}
-			SOURCES_POST_UNDEFS ${_sourcesPostUndefs})
+			SOURCES_POST_UNDEFS ${_sourcesPostUndefs}
+			${_dependsOption})
 
 	elseif ("${COTIRE_ARGV1}" STREQUAL "prefix")
+
+		if (XCODE)
+			# executing pre-build action under Xcode, check dependency on unity file and prefix dependencies
+			set (_dependsOption DEPENDS "${COTIRE_ARGV4}" ${COTIRE_TARGET_PREFIX_DEPENDS})
+		else()
+			# executing custom command, no need to re-check for dependencies
+			set (_dependsOption "")
+		endif()
 
 		set (_files "")
 		foreach (_index RANGE 4 ${COTIRE_ARGC})
@@ -3068,7 +3141,6 @@ if (CMAKE_SCRIPT_MODE_FILE)
 			COMPILER_ID "${CMAKE_${COTIRE_TARGET_LANGUAGE}_COMPILER_ID}"
 			COMPILER_VERSION "${COTIRE_${COTIRE_TARGET_LANGUAGE}_COMPILER_VERSION}"
 			LANGUAGE "${COTIRE_TARGET_LANGUAGE}"
-			DEPENDS "${COTIRE_ARGV0}" "${COTIRE_ARGV4}" ${COTIRE_TARGET_PREFIX_DEPENDS}
 			IGNORE_PATH "${COTIRE_TARGET_IGNORE_PATH};${COTIRE_ADDITIONAL_PREFIX_HEADER_IGNORE_PATH}"
 			INCLUDE_PATH ${COTIRE_TARGET_INCLUDE_PATH}
 			IGNORE_EXTENSIONS "${CMAKE_${COTIRE_TARGET_LANGUAGE}_SOURCE_FILE_EXTENSIONS};${COTIRE_ADDITIONAL_PREFIX_HEADER_IGNORE_EXTENSIONS}"
@@ -3076,7 +3148,8 @@ if (CMAKE_SCRIPT_MODE_FILE)
 			INCLUDE_DIRECTORIES ${_includeDirs}
 			SYSTEM_INCLUDE_DIRECTORIES ${_systemIncludeDirs}
 			COMPILE_DEFINITIONS ${_compileDefinitions}
-			COMPILE_FLAGS ${_compileFlags})
+			COMPILE_FLAGS ${_compileFlags}
+			${_dependsOption})
 
 	elseif ("${COTIRE_ARGV1}" STREQUAL "precompile")
 
@@ -3113,6 +3186,7 @@ if (CMAKE_SCRIPT_MODE_FILE)
 				list (APPEND _files "${COTIRE_ARGV${_index}}")
 			endif()
 		endforeach()
+
 		if (COTIRE_TARGET_LANGUAGE)
 			cotire_generate_unity_source(${_files} LANGUAGE "${COTIRE_TARGET_LANGUAGE}")
 		else()
