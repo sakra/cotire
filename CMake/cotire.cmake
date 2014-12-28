@@ -52,7 +52,7 @@ if (NOT CMAKE_VERSION VERSION_LESS "3.1.0")
 endif()
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.6.7")
+set (COTIRE_CMAKE_MODULE_VERSION "1.6.8")
 
 include(CMakeParseArguments)
 include(ProcessorCount)
@@ -3105,6 +3105,7 @@ if (CMAKE_SCRIPT_MODE_FILE)
 		endif()
 
 		cotire_select_unity_source_files("${COTIRE_ARGV3}" _sources ${_sources})
+		cotire_select_unity_source_files("${COTIRE_ARGV3}" _sourceLocations ${_sourceLocations})
 
 		cotire_generate_unity_source(
 			"${COTIRE_ARGV3}" ${_sources}

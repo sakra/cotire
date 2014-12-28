@@ -1,3 +1,7 @@
+## 1.6.8 (2014-12-28)
+
+* fix bug with generation of unity source file segments for parallel builds.
+
 ## 1.6.7 (2014-12-21)
 
 * fix CMake 3.1 compatibility issues.
