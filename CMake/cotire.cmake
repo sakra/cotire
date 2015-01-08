@@ -1054,7 +1054,8 @@ endfunction()
 function (cotire_scan_includes _includesVar)
 	set(_options "")
 	set(_oneValueArgs COMPILER_ID COMPILER_EXECUTABLE COMPILER_VERSION INCLUDE_SYSTEM_FLAG LANGUAGE UNPARSED_LINES)
-	set(_multiValueArgs COMPILE_DEFINITIONS COMPILE_FLAGS INCLUDE_DIRECTORIES SYSTEM_INCLUDE_DIRECTORIES IGNORE_PATH INCLUDE_PATH IGNORE_EXTENSIONS)
+	set(_multiValueArgs COMPILE_DEFINITIONS COMPILE_FLAGS INCLUDE_DIRECTORIES SYSTEM_INCLUDE_DIRECTORIES IGNORE_PATH INCLUDE_PATH IGNORE_EXTENSIONS,
+		INCLUDE_PRIORITY_PATH)
 	cmake_parse_arguments(_option "${_options}" "${_oneValueArgs}" "${_multiValueArgs}" ${ARGN})
 	set (_sourceFiles ${_option_UNPARSED_ARGUMENTS})
 	if (NOT _option_LANGUAGE)
@@ -1104,6 +1105,21 @@ function (cotire_scan_includes _includesVar)
 		"${_option_IGNORE_EXTENSIONS}"
 		_includes _unparsedLines
 		${_sourceFiles})
+
+	if (_option_INCLUDE_PRIORITY_PATH)
+		set (_sortedIncludes "")
+		foreach (_priorityPath ${_option_INCLUDE_PRIORITY_PATH})
+			foreach (_include ${_includes})
+				string (FIND ${_include} ${_priorityPath} _position)
+				if (_position GREATER -1)
+					list (APPEND _sortedIncludes ${_include})
+				endif()
+			endforeach()
+		endforeach()
+		list (INSERT _includes 0 "${_sortedIncludes}")
+		list (REMOVE_DUPLICATES _includes)
+	endif()
+
 	set (${_includesVar} ${_includes} PARENT_SCOPE)
 	if (_option_UNPARSED_LINES)
 		set (${_option_UNPARSED_LINES} ${_unparsedLines} PARENT_SCOPE)
@@ -1255,7 +1271,8 @@ function (cotire_generate_prefix_header _prefixFile)
 	set(_options "")
 	set(_oneValueArgs LANGUAGE COMPILER_EXECUTABLE COMPILER_ID COMPILER_VERSION INCLUDE_SYSTEM_FLAG)
 	set(_multiValueArgs DEPENDS COMPILE_DEFINITIONS COMPILE_FLAGS
-		INCLUDE_DIRECTORIES SYSTEM_INCLUDE_DIRECTORIES IGNORE_PATH INCLUDE_PATH IGNORE_EXTENSIONS)
+		INCLUDE_DIRECTORIES SYSTEM_INCLUDE_DIRECTORIES IGNORE_PATH INCLUDE_PATH IGNORE_EXTENSIONS
+		INCLUDE_PRIORITY_PATH)
 	cmake_parse_arguments(_option "${_options}" "${_oneValueArgs}" "${_multiValueArgs}" ${ARGN})
 	if (_option_DEPENDS)
 		cotire_check_file_up_to_date(_prefixFileIsUpToDate "${_prefixFile}" ${_option_DEPENDS})
@@ -1292,6 +1309,7 @@ function (cotire_generate_prefix_header _prefixFile)
 		IGNORE_PATH ${_option_IGNORE_PATH}
 		INCLUDE_PATH ${_option_INCLUDE_PATH}
 		IGNORE_EXTENSIONS ${_option_IGNORE_EXTENSIONS}
+		INCLUDE_PRIORITY_PATH ${_option_INCLUDE_PRIORITY_PATH}
 		UNPARSED_LINES _unparsedLines)
 	cotire_generate_unity_source("${_prefixFile}"
 		PROLOGUE ${_prologue} EPILOGUE ${_epilogue} LANGUAGE "${_option_LANGUAGE}" ${_selectedHeaders})
@@ -1951,6 +1969,7 @@ function (cotire_generate_target_script _language _configurations _targetSourceD
 	get_target_property(COTIRE_TARGET_PRE_UNDEFS ${_target} COTIRE_UNITY_SOURCE_PRE_UNDEFS)
 	get_target_property(COTIRE_TARGET_POST_UNDEFS ${_target} COTIRE_UNITY_SOURCE_POST_UNDEFS)
 	get_target_property(COTIRE_TARGET_MAXIMUM_NUMBER_OF_INCLUDES ${_target} COTIRE_UNITY_SOURCE_MAXIMUM_NUMBER_OF_INCLUDES)
+	get_target_property(COTIRE_TARGET_INCLUDE_PRIORITY_PATH ${_target} COTIRE_PREFIX_HEADER_INCLUDE_PRIORITY_PATH)
 	cotire_get_source_files_undefs(COTIRE_UNITY_SOURCE_PRE_UNDEFS COTIRE_TARGET_SOURCES_PRE_UNDEFS ${COTIRE_TARGET_SOURCES})
 	cotire_get_source_files_undefs(COTIRE_UNITY_SOURCE_POST_UNDEFS COTIRE_TARGET_SOURCES_POST_UNDEFS ${COTIRE_TARGET_SOURCES})
 	string (STRIP "${CMAKE_INCLUDE_SYSTEM_FLAG_${_language}}" COTIRE_INCLUDE_SYSTEM_FLAG)
@@ -2359,6 +2378,10 @@ function (cotire_init_cotire_target_properties _target)
 	get_property(_isSet TARGET ${_target} PROPERTY COTIRE_PREFIX_HEADER_INCLUDE_PATH SET)
 	if (NOT _isSet)
 		set_property(TARGET ${_target} PROPERTY COTIRE_PREFIX_HEADER_INCLUDE_PATH "")
+	endif()
+	get_property(_isSet TARGET ${_target} PROPERTY COTIRE_PREFIX_HEADER_INCLUDE_PRIORITY_PATH SET)
+	if (NOT _isSet)
+		set_property(TARGET ${_target} PROPERTY COTIRE_PREFIX_HEADER_INCLUDE_PRIORITY_PATH "")
 	endif()
 	get_property(_isSet TARGET ${_target} PROPERTY COTIRE_UNITY_SOURCE_PRE_UNDEFS SET)
 	if (NOT _isSet)
@@ -3145,6 +3168,7 @@ if (CMAKE_SCRIPT_MODE_FILE)
 			IGNORE_PATH "${COTIRE_TARGET_IGNORE_PATH};${COTIRE_ADDITIONAL_PREFIX_HEADER_IGNORE_PATH}"
 			INCLUDE_PATH ${COTIRE_TARGET_INCLUDE_PATH}
 			IGNORE_EXTENSIONS "${CMAKE_${COTIRE_TARGET_LANGUAGE}_SOURCE_FILE_EXTENSIONS};${COTIRE_ADDITIONAL_PREFIX_HEADER_IGNORE_EXTENSIONS}"
+			INCLUDE_PRIORITY_PATH "${COTIRE_TARGET_INCLUDE_PRIORITY_PATH}"
 			INCLUDE_SYSTEM_FLAG "${COTIRE_INCLUDE_SYSTEM_FLAG}"
 			INCLUDE_DIRECTORIES ${_includeDirs}
 			SYSTEM_INCLUDE_DIRECTORIES ${_systemIncludeDirs}
@@ -3383,6 +3407,13 @@ else()
 	)
 
 	define_property(
+		DIRECTORY PROPERTY "COTIRE_PREFIX_HEADER_INCLUDE_PRIORITY_PATH"
+		BRIEF_DOCS "Header path matching one of these directories is put at the top of prefix header."
+		FULL_DOCS
+			"See target property COTIRE_PREFIX_HEADER_INCLUDE_PRIORITY_PATH."
+	)
+
+	define_property(
 		DIRECTORY PROPERTY "COTIRE_UNITY_SOURCE_PRE_UNDEFS"
 		BRIEF_DOCS "Preprocessor undefs to place in the generated unity source file before the inclusion of each source file."
 		FULL_DOCS
@@ -3467,6 +3498,18 @@ else()
 			"Inherited from directory."
 			"If not set, this property is initialized to the empty list."
 	)
+
+	define_property(
+		TARGET PROPERTY "COTIRE_PREFIX_HEADER_INCLUDE_PRIORITY_PATH"
+		BRIEF_DOCS "Header path matching one of these directories is put at the top of prefix header."
+		FULL_DOCS
+			"The property can be set to a list of directories."
+			"Headers files paths matching one of these directories will appear at the begin of generated prefix header."
+			"Order is kept from the property path order."
+			"If not set, this property is initialized to the empty list."
+	)
+
+
 
 	define_property(
 		TARGET PROPERTY "COTIRE_UNITY_SOURCE_PRE_UNDEFS" INHERITED
