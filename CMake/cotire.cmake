@@ -52,7 +52,7 @@ if (NOT CMAKE_VERSION VERSION_LESS "3.1.0")
 endif()
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.6.8")
+set (COTIRE_CMAKE_MODULE_VERSION "1.6.9")
 
 include(CMakeParseArguments)
 include(ProcessorCount)
@@ -925,7 +925,7 @@ macro (cotire_parse_line _line _headerFileVar _headerDepthVar)
 		# English: "Note: including file:   C:\directory\file"
 		# German: "Hinweis: Einlesen der Datei:   C:\directory\file"
 		# We use a very general regular expression, relying on the presence of the : characters
-		if (_line MATCHES ":( +)([^:]+:[^:]+)$")
+		if (_line MATCHES "( +)([a-zA-Z]:[^:]+)$")
 			# Visual Studio compiler output
 			string (LENGTH "${CMAKE_MATCH_1}" ${_headerDepthVar})
 			get_filename_component(${_headerFileVar} "${CMAKE_MATCH_2}" ABSOLUTE)

@@ -1,3 +1,7 @@
+## 1.6.9 (2015-01-18)
+
+* fix bug with parsing of localized MSVC `/showIncludes` output.
+
 ## 1.6.8 (2014-12-28)
 
 * fix bug with generation of unity source file segments for parallel builds.
