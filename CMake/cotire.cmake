@@ -2757,7 +2757,8 @@ function (cotire_setup_unity_build_target _languages _configurations _targetSour
 		LIBRARY_OUTPUT_NAME LIBRARY_OUTPUT_NAME_<CONFIG>
 		OUTPUT_NAME OUTPUT_NAME_<CONFIG>
 		RUNTIME_OUTPUT_NAME RUNTIME_OUTPUT_NAME_<CONFIG>
-		PREFIX <CONFIG>_POSTFIX SUFFIX)
+		PREFIX <CONFIG>_POSTFIX SUFFIX
+		IMPORT_PREFIX IMPORT_SUFFIX)
 	# copy compile stuff
 	cotire_copy_set_properites("${_configurations}" TARGET ${_target} ${_unityTargetName}
 		COMPILE_DEFINITIONS COMPILE_DEFINITIONS_<CONFIG>
