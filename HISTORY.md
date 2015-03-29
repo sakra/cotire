@@ -1,3 +1,16 @@
+## 1.7.0 (2015-03-29)
+
+* fix CMake 3.2 compatibility issues.
+* cotire now requires CMake 2.8.12 or newer.
+* copy `IMPORT_PREFIX` and `IMPORT_SUFFIX` target properties for unity targets (thanks peterhuene).
+* new property `COTIRE_PREFIX_HEADER_INCLUDE_PRIORITY_PATH` allows for organizing includes
+  added to the prefix header by priority (thanks ArnaudD-FR).
+* for Visual Studio C++, increase static precompiled header memory allocation.
+* the default strategy for setting up a unity target's linked libraries is now `COPY_UNITY`.
+* for Qt projects, fix problem with handling of `AUTOMOC` in generated unity target.
+* fix problem with generating the cotire intermediate directory.
+* documentation updates.
+
 ## 1.6.9 (2015-01-18)
 
 * fix bug with parsing of localized MSVC `/showIncludes` output.

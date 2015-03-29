@@ -29,7 +29,7 @@ features
 requirements
 ------------
 
-* [CMake 2.8.6][cmk] or newer. The executable `cmake` should be on the system path.
+* [CMake 2.8.12][cmk] or newer. The executable `cmake` should be on the system path.
 * [Visual Studio C++][vslstd], [MinGW][mingw] or [Cygwin][cgwn] under Windows.
 * [GCC][gcc] or [Clang][clang] under Linux or OS X.
 * [Intel C++ compiler][intel] under Windows, Linux or OS X.
@@ -75,19 +75,7 @@ set the `COTIRE_CXX_PREFIX_HEADER_INIT` property before invoking cotire:
 
 As a side effect, cotire generates a new target named `MyExecutable_unity`, which lets you perform
 a unity build for the original target. The unity target inherits all build settings from the
-original target except for linked libraries and target dependencies. To get a workable unity
-target, add another `target_link_libraries` call:
-
-    cotire(MyExecutable)
-    target_link_libraries(MyExecutable_unity ${MyExecutableLibraries})
-
-If CMake version 2.8.11 or later is used, it is possible to also inherit linked libraries from
-the original target by setting the property `COTIRE_UNITY_LINK_LIBRARIES_INIT`:
-
-    set_target_properties(MyExecutable PROPERTIES COTIRE_UNITY_LINK_LIBRARIES_INIT "COPY")
-    cotire(MyExecutable)
-
-See the [cotire manual][manual] for more information.
+original target, including linked libraries and target dependencies.
 
 For Makefile based generators you can then invoke a unity build that produces the same output as
 the original target, but does so much faster by entering:
@@ -131,19 +119,19 @@ known issues
 [ccrc]:http://www.cmake.org/Wiki/CMake_Cross_Compiling
 [cgwn]:http://www.cygwin.com/
 [clang]:http://clang.llvm.org/
-[cmk]:http://www.cmake.org/cmake/resources/software.html
+[cmk]:http://www.cmake.org/download/
 [gcc]:http://gcc.gnu.org/
 [manual]:https://github.com/sakra/cotire/blob/master/MANUAL.md
 [mingw]:http://www.mingw.org/
-[ninja]:http://martine.github.com/ninja/
+[ninja]:http://martine.github.io/ninja/
 [pch]:http://en.wikipedia.org/wiki/Precompiled_header
 [pfh]:http://en.wikipedia.org/wiki/Prefix_header
 [scu]:http://en.wikipedia.org/wiki/Single_Compilation_Unit
 [vslstd]:http://msdn.microsoft.com/vstudio/
-[xcdt]:http://developer.apple.com/tools/xcode/
+[xcdt]:http://developer.apple.com/xcode/
 [PCHH]:http://gcc.gnu.org/wiki/PCHHaters
 [EoUB]:http://engineering-game-dev.com/2009/12/15/the-evils-of-unity-builds/
-[jom]:http://qt-project.org/wiki/jom
+[jom]:http://wiki.qt.io/Jom
 [intel]:http://software.intel.com/en-us/c-compilers
 [XGE]:http://www.incredibuild.com
 [shrp]:http://unriskinsight.blogspot.co.at/2014/09/sharpen-your-tools.html
