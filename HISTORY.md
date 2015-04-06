@@ -4,7 +4,7 @@
 * added a section on common pitfalls when using cotire to the manual.
 * remove obsolete code required for CMake versions older than 2.8.12.
 * streamline debugging output.
-# activate select CMake policies.
+* activate select CMake policies.
 
 ## 1.7.0 (2015-03-29)
 
