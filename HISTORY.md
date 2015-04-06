@@ -1,3 +1,11 @@
+## 1.7.1 (2015-04-06)
+
+* fix problem with CMake's automatic Qt processing for generated unity targets.
+* added a section on common pitfalls when using cotire to the manual.
+* remove obsolete code required for CMake versions older than 2.8.12.
+* streamline debugging output.
+# activate select CMake policies.
+
 ## 1.7.0 (2015-03-29)
 
 * fix CMake 3.2 compatibility issues.

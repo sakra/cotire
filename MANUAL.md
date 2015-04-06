@@ -688,8 +688,44 @@ left untouched.
 The property `COTIRE_PREFIX_HEADER_INCLUDE_PRIORITY_PATH` can also be set on directories. A target
 inherits the property value from its enclosing directory.
 
-cotire usage restrictions
--------------------------
+common pitfalls
+---------------
+
+### always add the directory where `cotire.cmake` resides to the CMake module search
+
+If CMake issues the message `Unknown CMake command "cotire"`, double check that the cotire module
+has been included correctly in your project. See the manual section "cotire basic usage".
+
+### do not modify a target's build related properties after applying cotire
+
+Cotire only considers build related settings of a target at the time of the `cotire` function call.
+If target properties that control the build are changed after the call to the `cotire` function,
+the build rules set up by cotire for the precompiled header and unity build may not work correctly.
+
+Don't do this:
+
+    add_executable(example main.cpp example.cpp log.cpp log.h example.h)
+    cotire(example)
+    ...
+    set_target_properties(example PROPERTIES POSITION_INDEPENDENT_CODE ON) # affects build
+
+
+### always apply cotire in the same source directory where a target has been added
+
+CMake targets are globally visible. Nevertheless, it is important that the `cotire` function is called
+for a target in the exact same directory that creates the target with `add_library` or `add_executable`.
+
+Don't do this:
+
+    add_subdirectory(src)
+    ...
+    cotire(mytarget) # mytarget added in src directory
+
+Cotire may fail to inspect the target's source files correctly, if the target has been added in a
+different directory and you may get messages about missing source files.
+
+known issues
+------------
 
 ### using source files for multiple targets
 
