@@ -691,7 +691,7 @@ inherits the property value from its enclosing directory.
 common pitfalls
 ---------------
 
-### always add the directory where `cotire.cmake` resides to the CMake module search
+### include the `cotire.cmake` module correclty
 
 If CMake issues the message `Unknown CMake command "cotire"`, double check that the cotire module
 has been included correctly in your project. See the manual section "cotire basic usage".
@@ -722,7 +722,7 @@ Don't do this:
     cotire(mytarget) # mytarget added in src directory
 
 Cotire may fail to inspect the target's source files correctly, if the target has been added in a
-different directory and you may get messages about missing source files.
+different directory and you may get odd messages about missing source files.
 
 known issues
 ------------

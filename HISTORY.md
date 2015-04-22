@@ -1,3 +1,10 @@
+## 1.7.2 (2015-04-22)
+
+* reduce configure time overhead.
+* fix bug with dependency checking when using Xcode.
+* remove obsolete code required for CMake versions older than 2.8.12.
+* streamline debugging output.
+
 ## 1.7.1 (2015-04-06)
 
 * fix problem with CMake's automatic Qt processing for generated unity targets.
