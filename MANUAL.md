@@ -298,7 +298,7 @@ ensure that the project builds properly without cotire.
 
 ### disabling precompiled headers and unity builds
 
-If the target's build process should not be modified to make us of the generated precompiled
+If the target's build process should not be modified to make use of the generated precompiled
 header, the target property `COTIRE_ENABLE_PRECOMPILED_HEADER` can be set to `FALSE`:
 
     set_target_properties(example PROPERTIES COTIRE_ENABLE_PRECOMPILED_HEADER FALSE)
