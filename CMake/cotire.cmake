@@ -95,6 +95,7 @@ endif()
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
 set (COTIRE_CMAKE_MODULE_VERSION "1.7.2")
+set (COTIRE_CMAKE_MODULE_VERSION "1.7.3")
 
 include(CMakeParseArguments)
 include(ProcessorCount)
