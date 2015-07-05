@@ -258,6 +258,7 @@ generated files (`<LANG>` can be set to `CXX` or `C`). The target property
     get_target_property(_unitySource example COTIRE_CXX_UNITY_SOURCE)
     get_target_property(_prefixHeader example COTIRE_CXX_PREFIX_HEADER)
     get_target_property(_precompiledHeader example COTIRE_CXX_PRECOMPILED_HEADER)
+    get_target_property(_unityTargetName example COTIRE_UNITY_TARGET_NAME)
 
 If a source file's `COMPILE_FLAGS` are modified by cotire, it sets the source file property
 `COTIRE_TARGET` to the name of the target, that the source file's build command has been
