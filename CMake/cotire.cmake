@@ -802,7 +802,7 @@ macro (cotire_add_frameworks_to_cmd _cmdVar _language)
 		set (_frameWorkDirs "")
 		foreach (_include ${ARGN})
 			if (IS_ABSOLUTE "${_include}" AND _include MATCHES "\\.framework$")
-				get_filename_component(_frameWorkDir "${_include}" PATH)
+				get_filename_component(_frameWorkDir "${_include}" DIRECTORY)
 				list (APPEND _frameWorkDirs "${_frameWorkDir}")
 			endif()
 		endforeach()
@@ -1508,7 +1508,7 @@ function (cotire_add_pch_compilation_flags _language _compilerID _compilerVersio
 			# -Kc++ process all source or unrecognized file types as C++ source files
 			# -fsyntax-only check only for correct syntax
 			# -Wpch-messages enable diagnostics related to pre-compiled headers (requires Intel XE 2013 Update 2)
-			get_filename_component(_pchDir "${_pchFile}" PATH)
+			get_filename_component(_pchDir "${_pchFile}" DIRECTORY)
 			get_filename_component(_pchName "${_pchFile}" NAME)
 			set (_xLanguage_C "c-header")
 			set (_xLanguage_CXX "c++-header")
@@ -1634,7 +1634,7 @@ function (cotire_add_prefix_pch_inclusion_flags _language _compilerID _compilerV
 			# -include process include file as the first line of the primary source file
 			# -Wpch-messages enable diagnostics related to pre-compiled headers (requires Intel XE 2013 Update 2)
 			if (_pchFile)
-				get_filename_component(_pchDir "${_pchFile}" PATH)
+				get_filename_component(_pchDir "${_pchFile}" DIRECTORY)
 				get_filename_component(_pchName "${_pchFile}" NAME)
 				if (_flags)
 					# append to list
@@ -3032,7 +3032,7 @@ function (cotire_cleanup _binaryDir _cotireIntermediateDirName _targetName)
 	# filter files in intermediate directory
 	set (_filesToRemove "")
 	foreach (_file ${_cotireFiles})
-		get_filename_component(_dir "${_file}" PATH)
+		get_filename_component(_dir "${_file}" DIRECTORY)
 		get_filename_component(_dirName "${_dir}" NAME)
 		if ("${_dirName}" STREQUAL "${_cotireIntermediateDirName}")
 			list (APPEND _filesToRemove "${_file}")
