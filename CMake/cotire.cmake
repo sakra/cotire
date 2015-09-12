@@ -42,6 +42,9 @@ if (NOT CMAKE_SCRIPT_MODE_FILE)
 	cmake_policy(POP)
 endif()
 
+set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
+set (COTIRE_CMAKE_MODULE_VERSION "1.7.4")
+
 # activate select policies
 if (POLICY CMP0038)
 	# targets may not link directly to themselves
@@ -92,9 +95,6 @@ if (POLICY CMP0054)
 	# only interpret if() arguments as variables or keywords when unquoted
 	cmake_policy(SET CMP0054 NEW)
 endif()
-
-set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.7.3")
 
 include(CMakeParseArguments)
 include(ProcessorCount)
