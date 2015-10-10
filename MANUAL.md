@@ -692,7 +692,7 @@ inherits the property value from its enclosing directory.
 common pitfalls
 ---------------
 
-### include the `cotire.cmake` module correclty
+### include the `cotire.cmake` module correctly
 
 If CMake issues the message `Unknown CMake command "cotire"`, double check that the cotire module
 has been included correctly in your project. See the manual section "cotire basic usage".
