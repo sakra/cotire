@@ -1,3 +1,9 @@
+## 1.7.4 (2015-10-10)
+
+* set up single unity source file for prefix header generation.
+* increase MSVC default PCH memory to 128M.
+* remove obsolete code.
+
 ## 1.7.3 (2015-07-25)
 
 * handle language standard target properties (e.g., `CXX_STANDARD`).
