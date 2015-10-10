@@ -2303,21 +2303,15 @@ function (cotire_setup_unity_generation_commands _language _target _targetScript
 			VERBATIM)
 		list (APPEND ${_cmdsVar} COMMAND ${_unityCmd})
 	endforeach()
-	list (LENGTH _unityFiles _numberOfUnityFiles)
-	if (_numberOfUnityFiles GREATER 1)
-		# create a joint unity file from all unity file segments
-		cotire_make_single_unity_source_file_path(${_language} ${_target} _unityFile)
-		cotire_setup_combine_command(${_language} "${_targetConfigScript}" "${_unityFile}" ${_cmdsVar} ${_unityFiles})
-	endif()
 	set (${_cmdsVar} ${${_cmdsVar}} PARENT_SCOPE)
 endfunction()
 
-function (cotire_setup_prefix_generation_command _language _target _targetScript _prefixFile _unityFile _cmdsVar)
+function (cotire_setup_prefix_generation_command _language _target _targetScript _prefixFile _unityFiles _cmdsVar)
 	set (_sourceFiles ${ARGN})
 	set (_dependencySources "")
 	cotire_get_prefix_header_dependencies(${_language} ${_target} _dependencySources ${_sourceFiles})
 	cotire_set_cmd_to_prologue(_prefixCmd)
-	list (APPEND _prefixCmd -P "${COTIRE_CMAKE_MODULE_FILE}" "prefix" "${_targetScript}" "${_prefixFile}" "${_unityFile}")
+	list (APPEND _prefixCmd -P "${COTIRE_CMAKE_MODULE_FILE}" "prefix" "${_targetScript}" "${_prefixFile}" ${_unityFiles})
 	set_property (SOURCE "${_prefixFile}" PROPERTY GENERATED TRUE)
 	if (COTIRE_DEBUG)
 		message (STATUS "add_custom_command: OUTPUT ${_prefixFile} COMMAND ${_prefixCmd} DEPENDS ${_unityFile} ${_dependencySources}")
@@ -2332,7 +2326,7 @@ function (cotire_setup_prefix_generation_command _language _target _targetScript
 	add_custom_command(
 		OUTPUT "${_prefixFile}" "${_prefixFile}.log"
 		COMMAND ${_prefixCmd}
-		DEPENDS "${_unityFile}" ${_dependencySources}
+		DEPENDS ${_unityFiles} ${_dependencySources}
 		COMMENT "${_comment}"
 		WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
 		VERBATIM)
@@ -2348,17 +2342,9 @@ function (cotire_setup_prefix_generation_from_unity_command _language _target _t
 	else()
 		set (_prefixSourceFile "${_prefixFile}")
 	endif()
-	list (LENGTH _unityFiles _numberOfUnityFiles)
-	if (_numberOfUnityFiles GREATER 1)
-		cotire_make_single_unity_source_file_path(${_language} ${_target} _unityFile)
-		cotire_setup_prefix_generation_command(
-			${_language} ${_target} "${_targetScript}"
-			"${_prefixSourceFile}" "${_unityFile}" ${_cmdsVar} ${_sourceFiles})
-	else()
-		cotire_setup_prefix_generation_command(
-			${_language} ${_target} "${_targetScript}"
-			"${_prefixSourceFile}" "${_unityFiles}" ${_cmdsVar} ${_sourceFiles})
-	endif()
+	cotire_setup_prefix_generation_command(
+		${_language} ${_target} "${_targetScript}"
+		"${_prefixSourceFile}" "${_unityFiles}" ${_cmdsVar} ${_sourceFiles})
 	if (CMAKE_${_language}_COMPILER_ID MATCHES "GNU|Clang")
 		# set up generation of a prefix source file which includes the prefix header
 		cotire_setup_combine_command(${_language} "${_targetScript}" "${_prefixFile}" _cmds ${_prefixSourceFile})
@@ -2619,14 +2605,22 @@ function (cotire_process_target_language _language _configurations _target _whol
 	endif()
 	cotire_generate_target_script(
 		${_language} "${_configurations}" ${_target} _targetScript _targetConfigScript ${_unitySourceFiles})
+	# set up unity files for parallel compilation
 	cotire_compute_unity_max_number_of_includes(${_target} _maxIncludes ${_unitySourceFiles})
 	cotire_make_unity_source_file_paths(${_language} ${_target} ${_maxIncludes} _unityFiles ${_unitySourceFiles})
-	if (NOT _unityFiles)
+	list (LENGTH _unityFiles _numberOfUnityFiles)
+	if (_numberOfUnityFiles EQUAL 0)
 		return()
+	elseif (_numberOfUnityFiles GREATER 1)
+		cotire_setup_unity_generation_commands(
+			${_language} ${_target} "${_targetScript}" "${_targetConfigScript}" "${_unityFiles}" _cmds ${_unitySourceFiles})
 	endif()
+	# set up single unity file for prefix header generation
+	cotire_make_single_unity_source_file_path(${_language} ${_target} _unityFile)
 	cotire_setup_unity_generation_commands(
-		${_language} ${_target} "${_targetScript}" "${_targetConfigScript}" "${_unityFiles}" _cmds ${_unitySourceFiles})
+		${_language} ${_target} "${_targetScript}" "${_targetConfigScript}" "${_unityFile}" _cmds ${_unitySourceFiles})
 	cotire_make_prefix_file_path(${_language} ${_target} _prefixFile)
+	# set up prefix header
 	if (_prefixFile)
 		# check for user provided prefix header files
 		get_property(_prefixHeaderFiles TARGET ${_target} PROPERTY COTIRE_${_language}_PREFIX_HEADER_INIT)
@@ -2635,7 +2629,7 @@ function (cotire_process_target_language _language _configurations _target _whol
 				${_language} ${_target} "${_targetConfigScript}" "${_prefixFile}" _cmds ${_prefixHeaderFiles})
 		else()
 			cotire_setup_prefix_generation_from_unity_command(
-				${_language} ${_target} "${_targetConfigScript}" "${_prefixFile}" "${_unityFiles}" _cmds ${_unitySourceFiles})
+				${_language} ${_target} "${_targetConfigScript}" "${_prefixFile}" "${_unityFile}" _cmds ${_unitySourceFiles})
 		endif()
 		# check if selected language has enough sources at all
 		list (LENGTH _sourceFiles _numberOfSources)
