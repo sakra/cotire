@@ -2019,7 +2019,12 @@ function (cotire_generate_target_script _language _configurations _target _targe
 	# copy variable definitions to cotire target script
 	get_cmake_property(_vars VARIABLES)
 	string (REGEX MATCHALL "COTIRE_[A-Za-z0-9_]+" _matchVars "${_vars}")
-	# remove COTIRE_VERBOSE which is passed as a CMake define on command line
+	# omit COTIRE_*_INIT variables
+	string (REGEX MATCHALL "COTIRE_[A-Za-z0-9_]+_INIT" _initVars "${_matchVars}")
+	if (_initVars)
+		list (REMOVE_ITEM _matchVars ${_initVars})
+	endif()
+	# omit COTIRE_VERBOSE which is passed as a CMake define on command line
 	list (REMOVE_ITEM _matchVars COTIRE_VERBOSE)
 	set (_contents "")
 	set (_contentsHasGeneratorExpressions FALSE)
