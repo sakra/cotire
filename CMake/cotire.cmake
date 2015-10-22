@@ -47,6 +47,16 @@ set (COTIRE_CMAKE_MODULE_VERSION "1.7.4")
 set (COTIRE_CMAKE_MODULE_VERSION "1.7.5")
 
 # activate select policies
+if (POLICY CMP0025)
+	# Compiler id for Apple Clang is now AppleClang
+	cmake_policy(SET CMP0025 NEW)
+endif()
+
+if (POLICY CMP0026)
+	# disallow use of the LOCATION target property
+	cmake_policy(SET CMP0026 NEW)
+endif()
+
 if (POLICY CMP0038)
 	# targets may not link directly to themselves
 	cmake_policy(SET CMP0038 NEW)
