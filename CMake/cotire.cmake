@@ -860,23 +860,42 @@ function (cotire_add_includes_to_cmd _cmdVar _language _includesVar _systemInclu
 	set (${_cmdVar} ${${_cmdVar}} PARENT_SCOPE)
 endfunction()
 
-macro (cotire_add_frameworks_to_cmd _cmdVar _language)
+function (cotire_add_frameworks_to_cmd _cmdVar _language _includesVar _systemIncludesVar)
 	if (APPLE)
-		set (_frameWorkDirs "")
-		foreach (_include ${ARGN})
+		set (_frameworkDirs "")
+		foreach (_include ${${_includesVar}})
 			if (IS_ABSOLUTE "${_include}" AND _include MATCHES "\\.framework$")
-				get_filename_component(_frameWorkDir "${_include}" DIRECTORY)
-				list (APPEND _frameWorkDirs "${_frameWorkDir}")
+				get_filename_component(_frameworkDir "${_include}" DIRECTORY)
+				list (APPEND _frameworkDirs "${_frameworkDir}")
 			endif()
 		endforeach()
-		if (_frameWorkDirs)
-			list (REMOVE_DUPLICATES _frameWorkDirs)
-			foreach (_frameWorkDir ${_frameWorkDirs})
-				list (APPEND ${_cmdVar} "${CMAKE_${_language}_FRAMEWORK_SEARCH_FLAG}${_frameWorkDir}")
+		set (_systemFrameworkDirs "")
+		foreach (_include ${${_systemIncludesVar}})
+			if (IS_ABSOLUTE "${_include}" AND _include MATCHES "\\.framework$")
+				get_filename_component(_frameworkDir "${_include}" DIRECTORY)
+				list (APPEND _systemFrameworkDirs "${_frameworkDir}")
+			endif()
+		endforeach()
+		if (_systemFrameworkDirs)
+			list (APPEND _frameworkDirs ${_systemFrameworkDirs})
+		endif()
+		if (_frameworkDirs)
+			list (REMOVE_DUPLICATES _frameworkDirs)
+			foreach (_frameworkDir ${_frameworkDirs})
+				set (_index -1)
+				if ("${CMAKE_${_language}_SYSTEM_FRAMEWORK_SEARCH_FLAG}" MATCHES ".+")
+					list (FIND _systemFrameworkDirs "${_frameworkDir}" _index)
+				endif()
+				if (_index GREATER -1)
+					list (APPEND ${_cmdVar} "${CMAKE_${_language}_SYSTEM_FRAMEWORK_SEARCH_FLAG}${_frameworkDir}")
+				else()
+					list (APPEND ${_cmdVar} "${CMAKE_${_language}_FRAMEWORK_SEARCH_FLAG}${_frameworkDir}")
+				endif()
 			endforeach()
 		endif()
 	endif()
-endmacro()
+	set (${_cmdVar} ${${_cmdVar}} PARENT_SCOPE)
+endfunction()
 
 macro (cotire_add_compile_flags_to_cmd _cmdVar)
 	foreach (_flag ${ARGN})
@@ -1143,7 +1162,7 @@ function (cotire_scan_includes _includesVar)
 	cotire_add_definitions_to_cmd(_cmd "${_option_LANGUAGE}" ${_option_COMPILE_DEFINITIONS})
 	cotire_add_compile_flags_to_cmd(_cmd ${_option_COMPILE_FLAGS})
 	cotire_add_includes_to_cmd(_cmd "${_option_LANGUAGE}" _option_INCLUDE_DIRECTORIES _option_SYSTEM_INCLUDE_DIRECTORIES)
-	cotire_add_frameworks_to_cmd(_cmd "${_option_LANGUAGE}" ${_option_INCLUDE_DIRECTORIES})
+	cotire_add_frameworks_to_cmd(_cmd "${_option_LANGUAGE}" _option_INCLUDE_DIRECTORIES _option_SYSTEM_INCLUDE_DIRECTORIES)
 	cotire_add_makedep_flags("${_option_LANGUAGE}" "${_option_COMPILER_ID}" "${_option_COMPILER_VERSION}" _cmd)
 	# only consider existing source files for scanning
 	set (_existingSourceFiles "")
@@ -1746,7 +1765,7 @@ function (cotire_precompile_prefix_header _prefixFile _pchFile _hostFile)
 	cotire_add_definitions_to_cmd(_cmd "${_option_LANGUAGE}" ${_option_COMPILE_DEFINITIONS})
 	cotire_add_compile_flags_to_cmd(_cmd ${_option_COMPILE_FLAGS})
 	cotire_add_includes_to_cmd(_cmd "${_option_LANGUAGE}" _option_INCLUDE_DIRECTORIES _option_SYSTEM_INCLUDE_DIRECTORIES)
-	cotire_add_frameworks_to_cmd(_cmd "${_option_LANGUAGE}" ${_option_INCLUDE_DIRECTORIES})
+	cotire_add_frameworks_to_cmd(_cmd "${_option_LANGUAGE}" _option_INCLUDE_DIRECTORIES _option_SYSTEM_INCLUDE_DIRECTORIES)
 	cotire_add_pch_compilation_flags(
 		"${_option_LANGUAGE}" "${_option_COMPILER_ID}" "${_option_COMPILER_VERSION}"
 		"${_prefixFile}" "${_pchFile}" "${_hostFile}" _cmd)
@@ -2093,8 +2112,10 @@ function (cotire_generate_target_script _language _configurations _target _targe
 		XCODE MSVC CMAKE_GENERATOR CMAKE_BUILD_TYPE CMAKE_CONFIGURATION_TYPES
 		CMAKE_${_language}_COMPILER_ID CMAKE_${_language}_COMPILER_VERSION
 		CMAKE_${_language}_COMPILER CMAKE_${_language}_COMPILER_ARG1
-		CMAKE_INCLUDE_FLAG_${_language} CMAKE_INCLUDE_SYSTEM_FLAG_${_language}
-		CMAKE_${_language}_FRAMEWORK_SEARCH_FLAG CMAKE_INCLUDE_FLAG_${_language}_SEP
+		CMAKE_INCLUDE_FLAG_${_language} CMAKE_INCLUDE_FLAG_${_language}_SEP
+		CMAKE_INCLUDE_SYSTEM_FLAG_${_language}
+		CMAKE_${_language}_FRAMEWORK_SEARCH_FLAG
+		CMAKE_${_language}_SYSTEM_FRAMEWORK_SEARCH_FLAG
 		CMAKE_${_language}_SOURCE_FILE_EXTENSIONS)
 		if (DEFINED ${_var})
 			string (REPLACE "\"" "\\\"" _value "${${_var}}")
