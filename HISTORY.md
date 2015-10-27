@@ -1,3 +1,10 @@
+## 1.7.5 (2015-10-27)
+
+* handle visibility target properties (`CXX_VISIBILITY_PRESET` and `VISIBILITY_INLINES_HIDDEN`).
+* better handling of include directories and system include directories.
+* parse additional system include directories from target compile flags.
+* activate select CMake policies.
+
 ## 1.7.4 (2015-10-10)
 
 * set up single unity source file for prefix header generation.
