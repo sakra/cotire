@@ -75,7 +75,7 @@ set the `COTIRE_CXX_PREFIX_HEADER_INIT` property before invoking cotire:
 
 As a side effect, cotire generates a new target named `MyExecutable_unity`, which lets you perform
 a unity build for the original target. The unity target inherits all build settings from the
-original target, including linked libraries and target dependencies.
+original target, including linked library dependencies.
 
 For Makefile based generators you can then invoke a unity build that produces the same output as
 the original target, but does so much faster by entering:
