@@ -1,3 +1,8 @@
+## 1.7.6 (2015-12-06)
+
+* fix CMake 3.4 compatibility issues.
+* prevent redundant re-generation of prefix header when a target has generated source files.
+
 ## 1.7.5 (2015-10-27)
 
 * handle visibility target properties (`CXX_VISIBILITY_PRESET` and `VISIBILITY_INLINES_HIDDEN`).
