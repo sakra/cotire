@@ -2041,14 +2041,6 @@ function (cotire_get_prefix_header_dependencies _language _target _dependencySou
 	# depend on target source files marked with custom COTIRE_DEPENDENCY property
 	get_target_property(_targetSourceFiles ${_target} SOURCES)
 	cotire_get_objects_with_property_on(_dependencySources COTIRE_DEPENDENCY SOURCE ${_targetSourceFiles})
-	if (CMAKE_${_language}_COMPILER_ID MATCHES "GNU|Clang")
-		# GCC and clang raise a fatal error if a file is not found during preprocessing
-		# thus we depend on target's generated source files for prefix header generation
-		cotire_get_objects_with_property_on(_generatedSources GENERATED SOURCE ${_targetSourceFiles})
-		if (_generatedSources)
-			list (APPEND _dependencySources ${_generatedSources})
-		endif()
-	endif()
 	if (COTIRE_DEBUG AND _dependencySources)
 		message (STATUS "${_language} ${_target} prefix header dependencies: ${_dependencySources}")
 	endif()
@@ -2405,6 +2397,22 @@ function (cotire_setup_prefix_generation_command _language _target _targetScript
 		set (_comment "Generating ${_language} prefix source ${_prefixFileRelPath}")
 	else()
 		set (_comment "Generating ${_language} prefix header ${_prefixFileRelPath}")
+	endif()
+	# prevent pre-processing errors upon generating the prefix header when a target's generated include file does not yet exist
+	# we do not add a file-level dependency for the target's generated files though, because we only want to depend on their existence
+	# thus we make the prefix header generation depend on a custom helper target which triggers the generation of the files
+	set (_preTargetName "${_target}${COTIRE_PCH_TARGET_SUFFIX}_pre")
+	if (TARGET ${_preTargetName})
+		# custom helper target has already been generated while processing a different language
+		list (APPEND _dependencySources ${_preTargetName})
+	else()
+		get_target_property(_targetSourceFiles ${_target} SOURCES)
+		cotire_get_objects_with_property_on(_generatedSources GENERATED SOURCE ${_targetSourceFiles})
+		if (_generatedSources)
+			add_custom_target("${_preTargetName}" DEPENDS ${_generatedSources})
+			cotire_init_target("${_preTargetName}")
+			list (APPEND _dependencySources ${_preTargetName})
+		endif()
 	endif()
 	add_custom_command(
 		OUTPUT "${_prefixFile}" "${_prefixFile}.log"
