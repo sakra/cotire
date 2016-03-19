@@ -2156,7 +2156,11 @@ function (cotire_setup_pch_file_compilation _language _target _targetScript _pre
 		if (_targetScript)
 			cotire_set_cmd_to_prologue(_cmds)
 			list (APPEND _cmds -P "${COTIRE_CMAKE_MODULE_FILE}" "precompile" "${_targetScript}" "${_prefixFile}" "${_pchFile}" "${_hostFile}")
-			file (RELATIVE_PATH _pchFileRelPath "${CMAKE_BINARY_DIR}" "${_pchFile}")
+			if (MSVC_IDE)
+				file (TO_NATIVE_PATH "${_pchFile}" _pchFileLogPath)
+			else()
+				file (RELATIVE_PATH _pchFileLogPath "${CMAKE_BINARY_DIR}" "${_pchFile}")
+			endif()
 			if (COTIRE_DEBUG)
 				message (STATUS "add_custom_command: OUTPUT ${_pchFile} ${_cmds} DEPENDS ${_prefixFile} IMPLICIT_DEPENDS ${_language} ${_prefixFile}")
 			endif()
@@ -2167,7 +2171,7 @@ function (cotire_setup_pch_file_compilation _language _target _targetScript _pre
 				DEPENDS "${_prefixFile}"
 				IMPLICIT_DEPENDS ${_language} "${_prefixFile}"
 				WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-				COMMENT "Building ${_language} precompiled header ${_pchFileRelPath}"
+				COMMENT "Building ${_language} precompiled header ${_pchFileLogPath}"
 				VERBATIM)
 		endif()
 	endif()
@@ -2252,19 +2256,23 @@ function (cotire_setup_combine_command _language _targetScript _joinedFile _cmds
 		message (STATUS "add_custom_command: OUTPUT ${_joinedFile} COMMAND ${_prefixCmd} DEPENDS ${_files}")
 	endif()
 	set_property (SOURCE "${_joinedFile}" PROPERTY GENERATED TRUE)
-	file (RELATIVE_PATH _joinedFileRelPath "${CMAKE_BINARY_DIR}" "${_joinedFile}")
+	if (MSVC_IDE)
+		file (TO_NATIVE_PATH "${_joinedFile}" _joinedFileLogPath)
+	else()
+		file (RELATIVE_PATH _joinedFileLogPath "${CMAKE_BINARY_DIR}" "${_joinedFile}")
+	endif()
 	get_filename_component(_joinedFileBaseName "${_joinedFile}" NAME_WE)
 	get_filename_component(_joinedFileExt "${_joinedFile}" EXT)
 	if (_language AND _joinedFileBaseName MATCHES "${COTIRE_UNITY_SOURCE_FILENAME_SUFFIX}$")
-		set (_comment "Generating ${_language} unity source ${_joinedFileRelPath}")
+		set (_comment "Generating ${_language} unity source ${_joinedFileLogPath}")
 	elseif (_language AND _joinedFileBaseName MATCHES "${COTIRE_PREFIX_HEADER_FILENAME_SUFFIX}$")
 		if (_joinedFileExt MATCHES "^\\.c")
-			set (_comment "Generating ${_language} prefix source ${_joinedFileRelPath}")
+			set (_comment "Generating ${_language} prefix source ${_joinedFileLogPath}")
 		else()
-			set (_comment "Generating ${_language} prefix header ${_joinedFileRelPath}")
+			set (_comment "Generating ${_language} prefix header ${_joinedFileLogPath}")
 		endif()
 	else()
-		set (_comment "Generating ${_joinedFileRelPath}")
+		set (_comment "Generating ${_joinedFileLogPath}")
 	endif()
 	add_custom_command(
 		OUTPUT "${_joinedFile}"
@@ -2365,7 +2373,11 @@ function (cotire_setup_unity_generation_commands _language _target _targetScript
 			# CMake 3.1.0 supports generator expressions in arguments to DEPENDS
 			set (_unityCmdDepends "${_targetConfigScript}")
 		endif()
-		file (RELATIVE_PATH _unityFileRelPath "${CMAKE_BINARY_DIR}" "${_unityFile}")
+		if (MSVC_IDE)
+			file (TO_NATIVE_PATH "${_unityFile}" _unityFileLogPath)
+		else()
+			file (RELATIVE_PATH _unityFileLogPath "${CMAKE_BINARY_DIR}" "${_unityFile}")
+		endif()
 		if (COTIRE_DEBUG)
 			message (STATUS "add_custom_command: OUTPUT ${_unityFile} COMMAND ${_unityCmd} DEPENDS ${_unityCmdDepends}")
 		endif()
@@ -2373,7 +2385,7 @@ function (cotire_setup_unity_generation_commands _language _target _targetScript
 			OUTPUT "${_unityFile}"
 			COMMAND ${_unityCmd}
 			DEPENDS ${_unityCmdDepends}
-			COMMENT "Generating ${_language} unity source ${_unityFileRelPath}"
+			COMMENT "Generating ${_language} unity source ${_unityFileLogPath}"
 			WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
 			VERBATIM)
 		list (APPEND ${_cmdsVar} COMMAND ${_unityCmd})
@@ -2391,12 +2403,16 @@ function (cotire_setup_prefix_generation_command _language _target _targetScript
 	if (COTIRE_DEBUG)
 		message (STATUS "add_custom_command: OUTPUT ${_prefixFile} COMMAND ${_prefixCmd} DEPENDS ${_unityFile} ${_dependencySources}")
 	endif()
-	file (RELATIVE_PATH _prefixFileRelPath "${CMAKE_BINARY_DIR}" "${_prefixFile}")
+	if (MSVC_IDE)
+		file (TO_NATIVE_PATH "${_prefixFile}" _prefixFileLogPath)
+	else()
+		file (RELATIVE_PATH _prefixFileLogPath "${CMAKE_BINARY_DIR}" "${_prefixFile}")
+	endif()
 	get_filename_component(_prefixFileExt "${_prefixFile}" EXT)
 	if (_prefixFileExt MATCHES "^\\.c")
-		set (_comment "Generating ${_language} prefix source ${_prefixFileRelPath}")
+		set (_comment "Generating ${_language} prefix source ${_prefixFileLogPath}")
 	else()
-		set (_comment "Generating ${_language} prefix header ${_prefixFileRelPath}")
+		set (_comment "Generating ${_language} prefix header ${_prefixFileLogPath}")
 	endif()
 	# prevent pre-processing errors upon generating the prefix header when a target's generated include file does not yet exist
 	# we do not add a file-level dependency for the target's generated files though, because we only want to depend on their existence
