@@ -3,7 +3,7 @@
 # See the cotire manual for usage hints.
 #
 #=============================================================================
-# Copyright 2012-2015 Sascha Kratky
+# Copyright 2012-2016 Sascha Kratky
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
@@ -43,7 +43,7 @@ if (NOT CMAKE_SCRIPT_MODE_FILE)
 endif()
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.7.6")
+set (COTIRE_CMAKE_MODULE_VERSION "1.7.7")
 
 # activate select policies
 if (POLICY CMP0025)
@@ -331,7 +331,7 @@ function (cotire_get_target_usage_requirements _target _targetRequirementsVar)
 			list (FIND _targetRequirements ${_library} _index)
 			if (_index LESS 0)
 				list (APPEND _targetRequirements ${_library})
-				# process transitive libraries
+				# BFS traversal of transitive libraries
 				get_target_property(_libraries ${_library} INTERFACE_LINK_LIBRARIES)
 				if (_libraries)
 					list (APPEND _librariesToProcess ${_libraries})
