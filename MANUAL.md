@@ -340,7 +340,7 @@ file. The path is interpreted relative to the target source directory:
     cotire(example)
 
 If the prefix header `stdafx.h` needs an accompanying source file (e.g., `stdafx.cpp`) in order
-to be pre-compiled properly, that source file needs to be the first one on the list of source
+to be precompiled properly, that source file needs to be the first one on the list of source
 files in the target's `add_executable` or `add_library` call.
 
 The property `COTIRE_CXX_PREFIX_HEADER_INIT` can also be set to a list of header files which will
@@ -548,6 +548,11 @@ enabled in the following way upon configuring the project:
     $ export CCACHE_SLOPPINESS=pch_defines,time_macros
     $ cmake ..
 
+Alternatively, for CMake 3.4 or later compiler wrappers can be enabled by pointing the CMake
+variable `CMAKE_CXX_COMPILER_LAUNCHER` to the compiler wrapper executable upon configuring:
+
+    $ cmake -D CMAKE_CXX_COMPILER_LAUNCHER=/usr/local/bin/ccache <path-to-source>
+
 Note that with ccache in order for precompiled headers to work properly, it is necessary to set
 the environment variable `CCACHE_SLOPPINESS` to `pch_defines,time_macros`. Otherwise the build
 process may abort with the following error message:
@@ -654,7 +659,7 @@ The global `install_unity` target must depend on all unity targets that should b
 
 ### customized inclusion of system headers
 
-If a system header ends up in a pre-compiled header, it is not possible to customize the inclusion
+If a system header ends up in a precompiled header, it is not possible to customize the inclusion
 of that header in a source file through preprocessor defines.
 
 For example, under Windows one may want to include `Windows.h` with `NOMINMAX` defined to prevent
@@ -713,8 +718,9 @@ Don't do this:
 
 ### always apply cotire in the same source directory where a target has been added
 
-CMake targets are globally visible. Nevertheless, it is important that the `cotire` function is called
-for a target in the exact same directory that creates the target with `add_library` or `add_executable`.
+CMake targets are globally visible. Nevertheless, it is important that the `cotire` function is
+called for a target in the exact same directory that creates the target with `add_library` or
+`add_executable`.
 
 Don't do this:
 
@@ -728,14 +734,21 @@ different directory and you may get odd messages about missing source files.
 known issues
 ------------
 
+### Ninja compatibility
+
+Under Ninja indirect prefix header dependencies are ignored by the generated build system. Cotire
+uses the `IMPLICIT_DEPENDS` option of `add_custom_command` to make the precompiled header depend
+on header files indirectly included by the prefix header. The `IMPLICIT_DEPENDS` option is not
+supported by CMake's Ninja generator. See [CMake issue][ninja_issue].
+
 ### using source files for multiple targets
 
 When the same set of source files is used for different targets (e.g., for producing a static
 and a shared library variant from the same sources), using a precompiled header may not work.
 Under certain circumstances, cotire cannot enable the precompiled header usage by changing the
 `COMPILE_FLAGS` property of the whole target, but must set the `COMPILE_FLAGS` properties of
-individual target source files instead. This will break the usage of the source file for
-multiple targets.
+individual target source files instead. This will break the usage of the source file for multiple
+targets.
 
 ### multi-architecture builds under Mac OS X
 
@@ -772,6 +785,7 @@ Cotire is not compatible with [Xoreax IncrediBuild][XGE].
 [msvc_pch]:http://msdn.microsoft.com/en-us/library/szfdksca(v=vs.90).aspx
 [msvc_pch_create]:http://msdn.microsoft.com/en-us/library/7zc28563(v=vs.90).aspx
 [msvc_pch_use]:http://msdn.microsoft.com/en-us/library/z0atkd6c(v=vs.90).aspx
+[ninja_issue]:https://cmake.org/Bug/view.php?id=13234
 [EoUB]:http://engineering-game-dev.com/2009/12/15/the-evils-of-unity-builds/
 [pch]:http://en.wikipedia.org/wiki/Precompiled_header
 [scu]:http://en.wikipedia.org/wiki/Single_Compilation_Unit

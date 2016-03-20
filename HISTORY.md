@@ -1,3 +1,11 @@
+## 1.7.7 (2016-03-20)
+
+* CMake 3.5 compatibility.
+* fix bugs related to handling of interface libraries.
+* output shorter log messages when using Visual Studio IDE.
+* don't disable PCH if CMAKE_<LANG>_COMPILER_ID is not set (thanks jcelerier).
+* add support for compiler launchers introduced in CMake 3.4 (thanks misery).
+
 ## 1.7.6 (2015-12-06)
 
 * fix CMake 3.4 compatibility issues.
