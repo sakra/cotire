@@ -844,7 +844,12 @@ function (cotire_init_compile_cmd _cmdVar _language _compilerLauncher _compilerE
 		set (_compilerArg1 ${CMAKE_${_language}_COMPILER_ARG1})
 	endif()
 	string (STRIP "${_compilerArg1}" _compilerArg1)
-	set (${_cmdVar} ${_compilerLauncher} "${_compilerExe}" ${_compilerArg1} PARENT_SCOPE)
+	if ("${CMAKE_GENERATOR}" MATCHES "Make|Ninja")
+		# compiler launcher is only supported for Makefile and Ninja
+		set (${_cmdVar} ${_compilerLauncher} "${_compilerExe}" ${_compilerArg1} PARENT_SCOPE)
+	else()
+		set (${_cmdVar} "${_compilerExe}" ${_compilerArg1} PARENT_SCOPE)
+	endif()
 endfunction()
 
 macro (cotire_add_definitions_to_cmd _cmdVar _language)
