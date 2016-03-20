@@ -833,7 +833,10 @@ macro (cotire_set_cmd_to_prologue _cmdVar)
 	endif()
 endmacro()
 
-function (cotire_init_compile_cmd _cmdVar _language _compilerExe _compilerArg1)
+function (cotire_init_compile_cmd _cmdVar _language _compilerLauncher _compilerExe _compilerArg1)
+	if (NOT _compilerLauncher)
+		set (_compilerLauncher ${CMAKE_${_language}_COMPILER_LAUNCHER})
+	endif()
 	if (NOT _compilerExe)
 		set (_compilerExe "${CMAKE_${_language}_COMPILER}")
 	endif()
@@ -841,7 +844,7 @@ function (cotire_init_compile_cmd _cmdVar _language _compilerExe _compilerArg1)
 		set (_compilerArg1 ${CMAKE_${_language}_COMPILER_ARG1})
 	endif()
 	string (STRIP "${_compilerArg1}" _compilerArg1)
-	set (${_cmdVar} "${_compilerExe}" ${_compilerArg1} PARENT_SCOPE)
+	set (${_cmdVar} ${_compilerLauncher} "${_compilerExe}" ${_compilerArg1} PARENT_SCOPE)
 endfunction()
 
 macro (cotire_add_definitions_to_cmd _cmdVar _language)
@@ -1161,9 +1164,9 @@ endfunction()
 
 function (cotire_scan_includes _includesVar)
 	set(_options "")
-	set(_oneValueArgs COMPILER_ID COMPILER_EXECUTABLE COMPILER_VERSION LANGUAGE UNPARSED_LINES)
+	set(_oneValueArgs COMPILER_ID COMPILER_EXECUTABLE COMPILER_ARG1 COMPILER_VERSION LANGUAGE UNPARSED_LINES)
 	set(_multiValueArgs COMPILE_DEFINITIONS COMPILE_FLAGS INCLUDE_DIRECTORIES SYSTEM_INCLUDE_DIRECTORIES
-		IGNORE_PATH INCLUDE_PATH IGNORE_EXTENSIONS INCLUDE_PRIORITY_PATH)
+		IGNORE_PATH INCLUDE_PATH IGNORE_EXTENSIONS INCLUDE_PRIORITY_PATH COMPILER_LAUNCHER)
 	cmake_parse_arguments(_option "${_options}" "${_oneValueArgs}" "${_multiValueArgs}" ${ARGN})
 	set (_sourceFiles ${_option_UNPARSED_ARGUMENTS})
 	if (NOT _option_LANGUAGE)
@@ -1175,7 +1178,7 @@ function (cotire_scan_includes _includesVar)
 	if (NOT _option_COMPILER_VERSION)
 		set (_option_COMPILER_VERSION "${CMAKE_${_option_LANGUAGE}_COMPILER_VERSION}")
 	endif()
-	cotire_init_compile_cmd(_cmd "${_option_LANGUAGE}" "${_option_COMPILER_EXECUTABLE}" "${_option_COMPILER_ARG1}")
+	cotire_init_compile_cmd(_cmd "${_option_LANGUAGE}" "${_option_COMPILER_LAUNCHER}" "${_option_COMPILER_EXECUTABLE}" "${_option_COMPILER_ARG1}")
 	cotire_add_definitions_to_cmd(_cmd "${_option_LANGUAGE}" ${_option_COMPILE_DEFINITIONS})
 	cotire_add_compile_flags_to_cmd(_cmd ${_option_COMPILE_FLAGS})
 	cotire_add_includes_to_cmd(_cmd "${_option_LANGUAGE}" _option_INCLUDE_DIRECTORIES _option_SYSTEM_INCLUDE_DIRECTORIES)
@@ -1372,10 +1375,10 @@ endfunction()
 
 function (cotire_generate_prefix_header _prefixFile)
 	set(_options "")
-	set(_oneValueArgs LANGUAGE COMPILER_EXECUTABLE COMPILER_ID COMPILER_VERSION)
+	set(_oneValueArgs LANGUAGE COMPILER_EXECUTABLE COMPILER_ARG1 COMPILER_ID COMPILER_VERSION)
 	set(_multiValueArgs DEPENDS COMPILE_DEFINITIONS COMPILE_FLAGS
 		INCLUDE_DIRECTORIES SYSTEM_INCLUDE_DIRECTORIES IGNORE_PATH INCLUDE_PATH
-		IGNORE_EXTENSIONS INCLUDE_PRIORITY_PATH)
+		IGNORE_EXTENSIONS INCLUDE_PRIORITY_PATH COMPILER_LAUNCHER)
 	cmake_parse_arguments(_option "${_options}" "${_oneValueArgs}" "${_multiValueArgs}" ${ARGN})
 	if (NOT _option_COMPILER_ID)
 		set (_option_COMPILER_ID "${CMAKE_${_option_LANGUAGE}_ID}")
@@ -1408,7 +1411,9 @@ function (cotire_generate_prefix_header _prefixFile)
 	set (_sourceFiles ${_option_UNPARSED_ARGUMENTS})
 	cotire_scan_includes(_selectedHeaders ${_sourceFiles}
 		LANGUAGE "${_option_LANGUAGE}"
+		COMPILER_LAUNCHER "${_option_COMPILER_LAUNCHER}"
 		COMPILER_EXECUTABLE "${_option_COMPILER_EXECUTABLE}"
+		COMPILER_ARG1 "${_option_COMPILER_ARG1}"
 		COMPILER_ID "${_option_COMPILER_ID}"
 		COMPILER_VERSION "${_option_COMPILER_VERSION}"
 		COMPILE_DEFINITIONS ${_option_COMPILE_DEFINITIONS}
@@ -1766,8 +1771,8 @@ endfunction()
 
 function (cotire_precompile_prefix_header _prefixFile _pchFile _hostFile)
 	set(_options "")
-	set(_oneValueArgs COMPILER_EXECUTABLE COMPILER_ID COMPILER_VERSION LANGUAGE)
-	set(_multiValueArgs COMPILE_DEFINITIONS COMPILE_FLAGS INCLUDE_DIRECTORIES SYSTEM_INCLUDE_DIRECTORIES SYS)
+	set(_oneValueArgs COMPILER_EXECUTABLE COMPILER_ARG1 COMPILER_ID COMPILER_VERSION LANGUAGE)
+	set(_multiValueArgs COMPILE_DEFINITIONS COMPILE_FLAGS INCLUDE_DIRECTORIES SYSTEM_INCLUDE_DIRECTORIES SYS COMPILER_LAUNCHER)
 	cmake_parse_arguments(_option "${_options}" "${_oneValueArgs}" "${_multiValueArgs}" ${ARGN})
 	if (NOT _option_LANGUAGE)
 		set (_option_LANGUAGE "CXX")
@@ -1778,7 +1783,7 @@ function (cotire_precompile_prefix_header _prefixFile _pchFile _hostFile)
 	if (NOT _option_COMPILER_VERSION)
 		set (_option_COMPILER_VERSION "${CMAKE_${_option_LANGUAGE}_COMPILER_VERSION}")
 	endif()
-	cotire_init_compile_cmd(_cmd "${_option_LANGUAGE}" "${_option_COMPILER_EXECUTABLE}" "${_option_COMPILER_ARG1}")
+	cotire_init_compile_cmd(_cmd "${_option_LANGUAGE}" "${_option_COMPILER_LAUNCHER}" "${_option_COMPILER_EXECUTABLE}" "${_option_COMPILER_ARG1}")
 	cotire_add_definitions_to_cmd(_cmd "${_option_LANGUAGE}" ${_option_COMPILE_DEFINITIONS})
 	cotire_add_compile_flags_to_cmd(_cmd ${_option_COMPILE_FLAGS})
 	cotire_add_includes_to_cmd(_cmd "${_option_LANGUAGE}" _option_INCLUDE_DIRECTORIES _option_SYSTEM_INCLUDE_DIRECTORIES)
@@ -1829,8 +1834,8 @@ function (cotire_check_precompiled_header_support _language _target _msgVar)
 	else()
 		set (${_msgVar} "${_unsupportedCompiler}." PARENT_SCOPE)
 	endif()
-	get_target_property(launcher ${_target} ${_language}_COMPILER_LAUNCHER)
-	if (CMAKE_${_language}_COMPILER MATCHES "ccache" OR launcher MATCHES "ccache")
+	get_target_property(_launcher ${_target} ${_language}_COMPILER_LAUNCHER)
+	if (CMAKE_${_language}_COMPILER MATCHES "ccache" OR _launcher MATCHES "ccache")
 		if (NOT "$ENV{CCACHE_SLOPPINESS}" MATCHES "time_macros|pch_defines")
 			set (${_msgVar}
 				"ccache requires the environment variable CCACHE_SLOPPINESS to be set to \"pch_defines,time_macros\"."
@@ -2094,6 +2099,7 @@ function (cotire_generate_target_script _language _configurations _target _targe
 		cotire_get_source_files_compile_definitions(
 			"${_config}" "${_language}" COTIRE_TARGET_SOURCES_COMPILE_DEFINITIONS_${_upperConfig} ${_targetSources})
 	endforeach()
+	get_target_property(COTIRE_TARGET_${_language}_COMPILER_LAUNCHER ${_target} ${_language}_COMPILER_LAUNCHER)
 	# set up COTIRE_TARGET_SOURCES
 	set (COTIRE_TARGET_SOURCES "")
 	foreach (_sourceFile ${_targetSources})
@@ -2121,7 +2127,7 @@ function (cotire_generate_target_script _language _configurations _target _targe
 	foreach (_var IN LISTS _matchVars ITEMS
 		XCODE MSVC CMAKE_GENERATOR CMAKE_BUILD_TYPE CMAKE_CONFIGURATION_TYPES
 		CMAKE_${_language}_COMPILER_ID CMAKE_${_language}_COMPILER_VERSION
-		CMAKE_${_language}_COMPILER CMAKE_${_language}_COMPILER_ARG1
+		CMAKE_${_language}_COMPILER_LAUNCHER CMAKE_${_language}_COMPILER CMAKE_${_language}_COMPILER_ARG1
 		CMAKE_INCLUDE_FLAG_${_language} CMAKE_INCLUDE_FLAG_${_language}_SEP
 		CMAKE_INCLUDE_SYSTEM_FLAG_${_language}
 		CMAKE_${_language}_FRAMEWORK_SEARCH_FLAG
@@ -3356,6 +3362,7 @@ if (CMAKE_SCRIPT_MODE_FILE)
 
 		cotire_generate_prefix_header(
 			"${COTIRE_ARGV3}" ${_files}
+			COMPILER_LAUNCHER "${COTIRE_TARGET_${COTIRE_TARGET_LANGUAGE}_COMPILER_LAUNCHER}"
 			COMPILER_EXECUTABLE "${CMAKE_${COTIRE_TARGET_LANGUAGE}_COMPILER}"
 			COMPILER_ARG1 ${CMAKE_${COTIRE_TARGET_LANGUAGE}_COMPILER_ARG1}
 			COMPILER_ID "${CMAKE_${COTIRE_TARGET_LANGUAGE}_COMPILER_ID}"
@@ -3382,6 +3389,7 @@ if (CMAKE_SCRIPT_MODE_FILE)
 
 		cotire_precompile_prefix_header(
 			"${COTIRE_ARGV3}" "${COTIRE_ARGV4}" "${COTIRE_ARGV5}"
+			COMPILER_LAUNCHER "${COTIRE_TARGET_${COTIRE_TARGET_LANGUAGE}_COMPILER_LAUNCHER}"
 			COMPILER_EXECUTABLE "${CMAKE_${COTIRE_TARGET_LANGUAGE}_COMPILER}"
 			COMPILER_ARG1 ${CMAKE_${COTIRE_TARGET_LANGUAGE}_COMPILER_ARG1}
 			COMPILER_ID "${CMAKE_${COTIRE_TARGET_LANGUAGE}_COMPILER_ID}"
