@@ -1829,7 +1829,8 @@ function (cotire_check_precompiled_header_support _language _target _msgVar)
 	else()
 		set (${_msgVar} "${_unsupportedCompiler}." PARENT_SCOPE)
 	endif()
-	if (CMAKE_${_language}_COMPILER MATCHES "ccache")
+	get_target_property(launcher ${_target} ${_language}_COMPILER_LAUNCHER)
+	if (CMAKE_${_language}_COMPILER MATCHES "ccache" OR launcher MATCHES "ccache")
 		if (NOT "$ENV{CCACHE_SLOPPINESS}" MATCHES "time_macros|pch_defines")
 			set (${_msgVar}
 				"ccache requires the environment variable CCACHE_SLOPPINESS to be set to \"pch_defines,time_macros\"."
