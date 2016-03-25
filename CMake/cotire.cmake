@@ -576,6 +576,21 @@ function (cotire_get_target_include_directories _config _language _target _inclu
 		set (_linkedTargets "")
 		cotire_get_target_usage_requirements(${_target} _linkedTargets)
 		foreach (_linkedTarget ${_linkedTargets})
+			get_target_property(_linkedTargetType ${_linkedTarget} TYPE)
+			if (CMAKE_INCLUDE_CURRENT_DIR_IN_INTERFACE AND NOT CMAKE_VERSION VERSION_LESS "3.4.0" AND
+				_linkedTargetType MATCHES "(STATIC|SHARED|MODULE|OBJECT)_LIBRARY")
+				# CMAKE_INCLUDE_CURRENT_DIR_IN_INTERFACE refers to CMAKE_CURRENT_BINARY_DIR and CMAKE_CURRENT_SOURCE_DIR
+				# at the time, when the target was created. These correspond to the target properties BINARY_DIR and SOURCE_DIR
+				# which are only available with CMake 3.4 or later.
+				get_target_property(_targetDirs ${_linkedTarget} BINARY_DIR)
+				if (_targetDirs)
+					list (APPEND _dirs ${_targetDirs})
+				endif()
+				get_target_property(_targetDirs ${_linkedTarget} SOURCE_DIR)
+				if (_targetDirs)
+					list (APPEND _dirs ${_targetDirs})
+				endif()
+			endif()
 			get_target_property(_targetDirs ${_linkedTarget} INTERFACE_INCLUDE_DIRECTORIES)
 			if (_targetDirs)
 				list (APPEND _dirs ${_targetDirs})
