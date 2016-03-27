@@ -1,3 +1,9 @@
+## 1.7.8 (2016-03-27)
+
+* fix `COPY_UNITY` linking strategy for private link dependencies.
+* honor `CMAKE_INCLUDE_CURRENT_DIR_IN_INTERFACE` upon handling of target usage requirements.
+* reworked setting up of `LINK_LIBRARIES` and `INTERFACE_LINK_LIBRARIES` properties for unity targets.
+
 ## 1.7.7 (2016-03-20)
 
 * CMake 3.5 compatibility.
