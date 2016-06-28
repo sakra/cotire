@@ -1,5 +1,7 @@
 # cotire example project
 
+include(cotire)
+
 add_executable(example main.cpp example.cpp log.cpp log.h example.h)
 
 # enable warnings
