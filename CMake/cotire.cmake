@@ -1180,7 +1180,7 @@ endfunction()
 
 function (cotire_scan_includes _includesVar)
 	set(_options "")
-	set(_oneValueArgs COMPILER_ID COMPILER_EXECUTABLE COMPILER_ARG1 COMPILER_VERSION LANGUAGE UNPARSED_LINES)
+	set(_oneValueArgs COMPILER_ID COMPILER_EXECUTABLE COMPILER_ARG1 COMPILER_VERSION LANGUAGE UNPARSED_LINES SCAN_RESULT)
 	set(_multiValueArgs COMPILE_DEFINITIONS COMPILE_FLAGS INCLUDE_DIRECTORIES SYSTEM_INCLUDE_DIRECTORIES
 		IGNORE_PATH INCLUDE_PATH IGNORE_EXTENSIONS INCLUDE_PRIORITY_PATH COMPILER_LAUNCHER)
 	cmake_parse_arguments(_option "${_options}" "${_oneValueArgs}" "${_multiValueArgs}" ${ARGN})
@@ -1252,6 +1252,9 @@ function (cotire_scan_includes _includesVar)
 	set (${_includesVar} ${_includes} PARENT_SCOPE)
 	if (_option_UNPARSED_LINES)
 		set (${_option_UNPARSED_LINES} ${_unparsedLines} PARENT_SCOPE)
+	endif()
+	if (_option_SCAN_RESULT)
+		set (${_option_SCAN_RESULT} ${_result} PARENT_SCOPE)
 	endif()
 endfunction()
 
@@ -1440,12 +1443,13 @@ function (cotire_generate_prefix_header _prefixFile)
 		INCLUDE_PATH ${_option_INCLUDE_PATH}
 		IGNORE_EXTENSIONS ${_option_IGNORE_EXTENSIONS}
 		INCLUDE_PRIORITY_PATH ${_option_INCLUDE_PRIORITY_PATH}
-		UNPARSED_LINES _unparsedLines)
+		UNPARSED_LINES _unparsedLines
+		SCAN_RESULT _scanResult)
 	cotire_generate_unity_source("${_prefixFile}"
 		PROLOGUE ${_prologue} EPILOGUE ${_epilogue} LANGUAGE "${_option_LANGUAGE}" ${_selectedHeaders})
 	set (_unparsedLinesFile "${_prefixFile}.log")
 	if (_unparsedLines)
-		if (COTIRE_VERBOSE OR NOT _selectedHeaders)
+		if (COTIRE_VERBOSE OR _scanResult OR NOT _selectedHeaders)
 			list (LENGTH _unparsedLines _skippedLineCount)
 			message (STATUS "${_skippedLineCount} line(s) skipped, see ${_unparsedLinesFile}")
 		endif()
