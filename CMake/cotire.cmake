@@ -1856,10 +1856,31 @@ function (cotire_check_precompiled_header_support _language _target _msgVar)
 	endif()
 	get_target_property(_launcher ${_target} ${_language}_COMPILER_LAUNCHER)
 	if (CMAKE_${_language}_COMPILER MATCHES "ccache" OR _launcher MATCHES "ccache")
-		if (NOT "$ENV{CCACHE_SLOPPINESS}" MATCHES "time_macros|pch_defines")
-			set (${_msgVar}
-				"ccache requires the environment variable CCACHE_SLOPPINESS to be set to \"pch_defines,time_macros\"."
-				PARENT_SCOPE)
+		if (DEFINED ENV{CCACHE_SLOPPINESS})
+			if (NOT "$ENV{CCACHE_SLOPPINESS}" MATCHES "pch_defines" OR NOT "$ENV{CCACHE_SLOPPINESS}" MATCHES "time_macros")
+				set (${_msgVar}
+					"ccache requires the environment variable CCACHE_SLOPPINESS to be set to \"pch_defines,time_macros\"."
+					PARENT_SCOPE)
+			endif()
+		else()
+			if (_launcher MATCHES "ccache")
+				get_filename_component(_ccacheExe "${_launcher}" REALPATH)
+			else()
+				get_filename_component(_ccacheExe "${CMAKE_${_language}_COMPILER}" REALPATH)
+			endif()
+			execute_process(
+				COMMAND "${_ccacheExe}" "--print-config"
+				WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+				RESULT_VARIABLE _result
+				OUTPUT_VARIABLE _ccacheConfig OUTPUT_STRIP_TRAILING_WHITESPACE
+				ERROR_QUIET)
+			if (_result OR NOT
+				_ccacheConfig MATCHES "sloppiness.*=.*time_macros" OR NOT
+				_ccacheConfig MATCHES "sloppiness.*=.*pch_defines")
+				set (${_msgVar}
+					"ccache requires configuration setting \"sloppiness\" to be set to \"pch_defines,time_macros\"."
+					PARENT_SCOPE)
+			endif()
 		endif()
 	endif()
 	if (APPLE)
