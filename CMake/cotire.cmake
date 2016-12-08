@@ -2248,7 +2248,7 @@ function (cotire_setup_pch_file_compilation _language _target _targetScript _pre
 			else()
 				file (RELATIVE_PATH _pchFileLogPath "${CMAKE_BINARY_DIR}" "${_pchFile}")
 			endif()
-			# make precompiled header compilation depend on the actual compiler executable to force
+			# make precompiled header compilation depend on the actual compiler executable used to force
 			# re-compilation when the compiler executable is updated. This prevents "created by a different GCC executable"
 			# warnings when the precompiled header is included.
 			get_filename_component(_realCompilerExe "${CMAKE_${_language}_COMPILER}" ABSOLUTE)
@@ -2491,8 +2491,12 @@ function (cotire_setup_prefix_generation_command _language _target _targetScript
 	cotire_set_cmd_to_prologue(_prefixCmd)
 	list (APPEND _prefixCmd -P "${COTIRE_CMAKE_MODULE_FILE}" "prefix" "${_targetScript}" "${_prefixFile}" ${_unityFiles})
 	set_property (SOURCE "${_prefixFile}" PROPERTY GENERATED TRUE)
+	# make prefix header generation depend on the actual compiler executable used to force
+	# re-generation when the compiler executable is updated. This prevents "file not found"
+	# errors for compiler version specific system header files.
+	get_filename_component(_realCompilerExe "${CMAKE_${_language}_COMPILER}" ABSOLUTE)
 	if (COTIRE_DEBUG)
-		message (STATUS "add_custom_command: OUTPUT ${_prefixFile} COMMAND ${_prefixCmd} DEPENDS ${_unityFile} ${_dependencySources}")
+		message (STATUS "add_custom_command: OUTPUT ${_prefixFile} COMMAND ${_prefixCmd} DEPENDS ${_unityFile} ${_dependencySources} ${_realCompilerExe}")
 	endif()
 	if (MSVC_IDE)
 		file (TO_NATIVE_PATH "${_prefixFile}" _prefixFileLogPath)
@@ -2524,7 +2528,7 @@ function (cotire_setup_prefix_generation_command _language _target _targetScript
 	add_custom_command(
 		OUTPUT "${_prefixFile}" "${_prefixFile}.log"
 		COMMAND ${_prefixCmd}
-		DEPENDS ${_unityFiles} ${_dependencySources}
+		DEPENDS ${_unityFiles} ${_dependencySources} "${_realCompilerExe}"
 		COMMENT "${_comment}"
 		WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
 		VERBATIM)
