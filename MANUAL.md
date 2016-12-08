@@ -9,8 +9,8 @@ motivation
 ----------
 
 Cotire was born out of a dissatisfaction with the existing CMake solutions for adding
-[precompiled header][1260] support and [unity build][kde4macros] support to CMake based build
-systems. The design of cotire tries to adhere to the following principles:
+[precompiled header][1260] support and unity build support to CMake based build systems.
+The design of cotire tries to adhere to the following principles:
 
 #### as automatic as possible
 
@@ -601,7 +601,8 @@ original target.
 
 If this property is set to `COPY_UNITY`, the unity target's link libraries will be copied from the
 original target but instead of copying a linked target verbatim, the target's corresponding unity
-target will be preferred, provided one exists.
+target will be preferred, provided one exists. This also applies to object libraries, which have
+been added to the original target with a `TARGET_OBJECTS` generator expression.
 
 As of cotire 1.7.0, the default linking strategy for unit targets is `COPY_UNITY`.
 
@@ -775,21 +776,20 @@ is not compatible with those of precompiled header file) upon compilation of cot
 Cotire is not compatible with [Xoreax IncrediBuild][XGE].
 
 [1260]:http://www.cmake.org/Bug/view.php?id=1260
-[ccch]:http://ccache.samba.org/
-[ccch_pch]:http://ccache.samba.org/manual.html#_precompiled_headers
+[ccch]:https://ccache.samba.org/
+[ccch_pch]:https://ccache.samba.org/manual.html#_precompiled_headers
 [clang_pch]:http://clang.llvm.org/docs/UsersManual.html#precompiled-headers
 [fsedit_qt4]:http://www.vikingsoft.eu/fseditor.html
 [fsedit_qt5]:https://github.com/joonhwan/fsedit-qt5
-[gcc_pch]:http://gcc.gnu.org/onlinedocs/gcc/Precompiled-Headers.html
-[kde4macros]:http://kbfxmenu.googlecode.com/svn/trunk/kbfx3/cmakemodules/KDE4Macros.cmake
-[msvc_pch]:http://msdn.microsoft.com/en-us/library/szfdksca(v=vs.90).aspx
-[msvc_pch_create]:http://msdn.microsoft.com/en-us/library/7zc28563(v=vs.90).aspx
-[msvc_pch_use]:http://msdn.microsoft.com/en-us/library/z0atkd6c(v=vs.90).aspx
+[gcc_pch]:https://gcc.gnu.org/onlinedocs/gcc/Precompiled-Headers.html
+[msvc_pch]:https://msdn.microsoft.com/en-us/library/szfdksca(v=vs.90).aspx
+[msvc_pch_create]:https://msdn.microsoft.com/en-us/library/7zc28563(v=vs.90).aspx
+[msvc_pch_use]:https://msdn.microsoft.com/en-us/library/z0atkd6c(v=vs.90).aspx
 [ninja_issue]:https://cmake.org/Bug/view.php?id=13234
-[EoUB]:http://engineering-game-dev.com/2009/12/15/the-evils-of-unity-builds/
-[pch]:http://en.wikipedia.org/wiki/Precompiled_header
-[scu]:http://en.wikipedia.org/wiki/Single_Compilation_Unit
-[objlib]:http://www.cmake.org/cmake/help/v2.8.12/cmake.html#command:add_library
-[pfh]:http://en.wikipedia.org/wiki/Prefix_header
-[icc_linux]:http://software.intel.com/en-us/non-commercial-software-development
-[XGE]:http://www.incredibuild.com
+[EoUB]:https://engineering-game-dev.com/2009/12/15/the-evils-of-unity-builds/
+[pch]:https://en.wikipedia.org/wiki/Precompiled_header
+[scu]:https://en.wikipedia.org/wiki/Single_Compilation_Unit
+[objlib]:https://cmake.org/cmake/help/v2.8.12/cmake.html#command:add_library
+[pfh]:https://en.wikipedia.org/wiki/Prefix_header
+[icc_linux]:https://software.intel.com/en-us/c-compilers/ipsxe-support
+[XGE]:https://www.incredibuild.com/
