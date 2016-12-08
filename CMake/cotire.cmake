@@ -3000,9 +3000,16 @@ function (cotire_setup_unity_build_target _languages _configurations _target)
 	else()
 		add_library(${_unityTargetName} ${_unityTargetSubType} EXCLUDE_FROM_ALL ${_unityTargetSources})
 	endif()
-	if (_targetAutoMoc OR _targetAutoUic OR _targetAutoRcc)
-		# depend on the original target's implicity generated <targetname>_automoc target
-		add_dependencies(${_unityTargetName} ${_target}_automoc)
+	if ("${CMAKE_GENERATOR}" MATCHES "Visual Studio")
+		# depend on original target's automoc target, if it exists
+		if (TARGET ${_target}_automoc)
+			add_dependencies(${_unityTargetName} ${_target}_automoc)
+		endif()
+	else()
+		if (_targetAutoMoc OR _targetAutoUic OR _targetAutoRcc)
+			# depend on the original target's implicity generated <targetname>_automoc target
+			add_dependencies(${_unityTargetName} ${_target}_automoc)
+		endif()
 	endif()
 	# copy output location properties
 	set (_outputDirProperties
