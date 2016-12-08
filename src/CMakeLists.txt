@@ -3,9 +3,7 @@
 add_executable(example main.cpp example.cpp log.cpp log.h example.h)
 
 # enable warnings
-if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-	set_target_properties(example PROPERTIES COMPILE_FLAGS "/Wall")
-elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 	set_target_properties(example PROPERTIES COMPILE_FLAGS "-Weverything")
 elseif (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
 	set_target_properties(example PROPERTIES COMPILE_FLAGS "-Wall -Wextra")
