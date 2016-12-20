@@ -293,7 +293,7 @@ function (cotire_get_source_file_property_values _valuesVar _property)
 	set (${_valuesVar} ${_values} PARENT_SCOPE)
 endfunction()
 
-function (cotire_resolve_config_properites _configurations _propertiesVar)
+function (cotire_resolve_config_properties _configurations _propertiesVar)
 	set (_properties "")
 	foreach (_property ${ARGN})
 		if ("${_property}" MATCHES "<CONFIG>")
@@ -309,8 +309,8 @@ function (cotire_resolve_config_properites _configurations _propertiesVar)
 	set (${_propertiesVar} ${_properties} PARENT_SCOPE)
 endfunction()
 
-function (cotire_copy_set_properites _configurations _type _source _target)
-	cotire_resolve_config_properites("${_configurations}" _properties ${ARGN})
+function (cotire_copy_set_properties _configurations _type _source _target)
+	cotire_resolve_config_properties("${_configurations}" _properties ${ARGN})
 	foreach (_property ${_properties})
 		get_property(_isSet ${_type} ${_source} PROPERTY ${_property} SET)
 		if (_isSet)
@@ -3027,8 +3027,8 @@ function (cotire_setup_unity_build_target _languages _configurations _target)
 			set (_outputDir "${COTIRE_UNITY_OUTPUT_DIRECTORY}")
 		else()
 			# append relative COTIRE_UNITY_OUTPUT_DIRECTORY to target's actual output directory
-			cotire_copy_set_properites("${_configurations}" TARGET ${_target} ${_unityTargetName} ${_outputDirProperties})
-			cotire_resolve_config_properites("${_configurations}" _properties ${_outputDirProperties})
+			cotire_copy_set_properties("${_configurations}" TARGET ${_target} ${_unityTargetName} ${_outputDirProperties})
+			cotire_resolve_config_properties("${_configurations}" _properties ${_outputDirProperties})
 			foreach (_property ${_properties})
 				get_property(_outputDir TARGET ${_target} PROPERTY ${_property})
 				if (_outputDir)
@@ -3048,11 +3048,11 @@ function (cotire_setup_unity_build_target _languages _configurations _target)
 				RUNTIME_OUTPUT_DIRECTORY "${_outputDir}")
 		endif()
 	else()
-		cotire_copy_set_properites("${_configurations}" TARGET ${_target} ${_unityTargetName}
+		cotire_copy_set_properties("${_configurations}" TARGET ${_target} ${_unityTargetName}
 			${_outputDirProperties})
 	endif()
 	# copy output name
-	cotire_copy_set_properites("${_configurations}" TARGET ${_target} ${_unityTargetName}
+	cotire_copy_set_properties("${_configurations}" TARGET ${_target} ${_unityTargetName}
 		ARCHIVE_OUTPUT_NAME ARCHIVE_OUTPUT_NAME_<CONFIG>
 		LIBRARY_OUTPUT_NAME LIBRARY_OUTPUT_NAME_<CONFIG>
 		OUTPUT_NAME OUTPUT_NAME_<CONFIG>
@@ -3060,7 +3060,7 @@ function (cotire_setup_unity_build_target _languages _configurations _target)
 		PREFIX <CONFIG>_POSTFIX SUFFIX
 		IMPORT_PREFIX IMPORT_SUFFIX)
 	# copy compile stuff
-	cotire_copy_set_properites("${_configurations}" TARGET ${_target} ${_unityTargetName}
+	cotire_copy_set_properties("${_configurations}" TARGET ${_target} ${_unityTargetName}
 		COMPILE_DEFINITIONS COMPILE_DEFINITIONS_<CONFIG>
 		COMPILE_FLAGS COMPILE_OPTIONS
 		Fortran_FORMAT Fortran_MODULE_DIRECTORY
@@ -3072,12 +3072,12 @@ function (cotire_setup_unity_build_target _languages _configurations _target)
 		C_VISIBILITY_PRESET CXX_VISIBILITY_PRESET VISIBILITY_INLINES_HIDDEN
 		C_CLANG_TIDY CXX_CLANG_TIDY)
 	# copy compile features
-	cotire_copy_set_properites("${_configurations}" TARGET ${_target} ${_unityTargetName}
+	cotire_copy_set_properties("${_configurations}" TARGET ${_target} ${_unityTargetName}
 		C_EXTENSIONS C_STANDARD C_STANDARD_REQUIRED
 		CXX_EXTENSIONS CXX_STANDARD CXX_STANDARD_REQUIRED
 		COMPILE_FEATURES)
 	# copy interface stuff
-	cotire_copy_set_properites("${_configurations}" TARGET ${_target} ${_unityTargetName}
+	cotire_copy_set_properties("${_configurations}" TARGET ${_target} ${_unityTargetName}
 		COMPATIBLE_INTERFACE_BOOL COMPATIBLE_INTERFACE_NUMBER_MAX COMPATIBLE_INTERFACE_NUMBER_MIN
 		COMPATIBLE_INTERFACE_STRING
 		INTERFACE_COMPILE_DEFINITIONS INTERFACE_COMPILE_FEATURES INTERFACE_COMPILE_OPTIONS
@@ -3085,7 +3085,7 @@ function (cotire_setup_unity_build_target _languages _configurations _target)
 		INTERFACE_POSITION_INDEPENDENT_CODE INTERFACE_SYSTEM_INCLUDE_DIRECTORIES
 		INTERFACE_AUTOUIC_OPTIONS NO_SYSTEM_FROM_IMPORTED)
 	# copy link stuff
-	cotire_copy_set_properites("${_configurations}" TARGET ${_target} ${_unityTargetName}
+	cotire_copy_set_properties("${_configurations}" TARGET ${_target} ${_unityTargetName}
 		BUILD_WITH_INSTALL_RPATH INSTALL_RPATH INSTALL_RPATH_USE_LINK_PATH SKIP_BUILD_RPATH
 		LINKER_LANGUAGE LINK_DEPENDS LINK_DEPENDS_NO_SHARED
 		LINK_FLAGS LINK_FLAGS_<CONFIG>
@@ -3096,16 +3096,16 @@ function (cotire_setup_unity_build_target _languages _configurations _target)
 		NO_SONAME SOVERSION VERSION
 		LINK_WHAT_YOU_USE)
 	# copy cmake stuff
-	cotire_copy_set_properites("${_configurations}" TARGET ${_target} ${_unityTargetName}
+	cotire_copy_set_properties("${_configurations}" TARGET ${_target} ${_unityTargetName}
 		IMPLICIT_DEPENDS_INCLUDE_TRANSFORM RULE_LAUNCH_COMPILE RULE_LAUNCH_CUSTOM RULE_LAUNCH_LINK)
 	# copy Apple platform specific stuff
-	cotire_copy_set_properites("${_configurations}" TARGET ${_target} ${_unityTargetName}
+	cotire_copy_set_properties("${_configurations}" TARGET ${_target} ${_unityTargetName}
 		BUNDLE BUNDLE_EXTENSION FRAMEWORK FRAMEWORK_VERSION INSTALL_NAME_DIR
 		MACOSX_BUNDLE MACOSX_BUNDLE_INFO_PLIST MACOSX_FRAMEWORK_INFO_PLIST MACOSX_RPATH
 		OSX_ARCHITECTURES OSX_ARCHITECTURES_<CONFIG> PRIVATE_HEADER PUBLIC_HEADER RESOURCE XCTEST
 		IOS_INSTALL_COMBINED)
 	# copy Windows platform specific stuff
-	cotire_copy_set_properites("${_configurations}" TARGET ${_target} ${_unityTargetName}
+	cotire_copy_set_properties("${_configurations}" TARGET ${_target} ${_unityTargetName}
 		GNUtoMS
 		COMPILE_PDB_NAME COMPILE_PDB_NAME_<CONFIG>
 		COMPILE_PDB_OUTPUT_DIRECTORY COMPILE_PDB_OUTPUT_DIRECTORY_<CONFIG>
@@ -3121,7 +3121,7 @@ function (cotire_setup_unity_build_target _languages _configurations _target)
 		DEPLOYMENT_REMOTE_DIRECTORY VS_CONFIGURATION_TYPE
 		VS_SDK_REFERENCES)
 	# copy Android platform specific stuff
-	cotire_copy_set_properites("${_configurations}" TARGET ${_target} ${_unityTargetName}
+	cotire_copy_set_properties("${_configurations}" TARGET ${_target} ${_unityTargetName}
 		ANDROID_API ANDROID_API_MIN ANDROID_GUI
 		ANDROID_ANT_ADDITIONAL_OPTIONS ANDROID_ARCH ANDROID_ASSETS_DIRECTORIES
 		ANDROID_JAR_DEPENDENCIES ANDROID_JAR_DIRECTORIES ANDROID_JAVA_SOURCE_DIR
