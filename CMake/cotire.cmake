@@ -627,7 +627,7 @@ function (cotire_get_target_include_directories _config _language _target _inclu
 	if (CMAKE_${_language}_IMPLICIT_INCLUDE_DIRECTORIES)
 		list (REMOVE_ITEM _includeDirs ${CMAKE_${_language}_IMPLICIT_INCLUDE_DIRECTORIES})
 	endif()
-	if (WIN32)
+	if (WIN32 AND NOT MINGW)
 		# convert Windows paths in include directories to CMake paths
 		if (_includeDirs)
 			set (_paths "")
