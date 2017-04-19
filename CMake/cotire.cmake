@@ -2989,8 +2989,13 @@ function (cotire_setup_unity_build_target _languages _configurations _target)
 	if (_targetAutoMoc OR _targetAutoUic OR _targetAutoRcc)
 		# if the original target sources are subject to CMake's automatic Qt processing,
 		# also include implicitly generated <targetname>_automoc.cpp file
-		list (APPEND _unityTargetSources "${_target}_automoc.cpp")
-		set_property (SOURCE "${_target}_automoc.cpp" PROPERTY GENERATED TRUE)
+		if (CMAKE_VERSION VERSION_LESS "3.8.0")
+			list (APPEND _unityTargetSources "${_target}_automoc.cpp")
+			set_property (SOURCE "${_target}_automoc.cpp" PROPERTY GENERATED TRUE)
+		else()
+			list (APPEND _unityTargetSources "${_target}_autogen/moc_compilation.cpp")
+			set_property (SOURCE "${_target}_autogen/moc_compilation.cpp" PROPERTY GENERATED TRUE)
+		endif()
 	endif()
 	# prevent AUTOMOC, AUTOUIC and AUTORCC properties from being set when the unity target is created
 	set (CMAKE_AUTOMOC OFF)
@@ -3013,7 +3018,11 @@ function (cotire_setup_unity_build_target _languages _configurations _target)
 	else()
 		if (_targetAutoMoc OR _targetAutoUic OR _targetAutoRcc)
 			# depend on the original target's implicity generated <targetname>_automoc target
-			add_dependencies(${_unityTargetName} ${_target}_automoc)
+			if (CMAKE_VERSION VERSION_LESS "3.8.0")
+				add_dependencies(${_unityTargetName} ${_target}_automoc)
+			else()
+				add_dependencies(${_unityTargetName} ${_target}_autogen)
+			endif()
 		endif()
 	endif()
 	# copy output location properties
