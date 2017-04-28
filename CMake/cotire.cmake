@@ -1839,6 +1839,15 @@ function (cotire_precompile_prefix_header _prefixFile _pchFile _hostFile)
 	if (_option_COMPILER_ID MATCHES "MSVC")
 		# cl.exe messes with the output streams unless the environment variable VS_UNICODE_OUTPUT is cleared
 		unset (ENV{VS_UNICODE_OUTPUT})
+	elseif (_option_COMPILER_ID MATCHES "Clang")
+		if (_option_COMPILER_LAUNCHER MATCHES "ccache" OR
+			_option_COMPILER_EXECUTABLE MATCHES "ccache")
+			# Clang seems to embed a compilation timestamp into the precompiled header binary,
+			# which results in "file has been modified since the precompiled header was built"
+			# errors if ccache is used. We work around the problem by disabling ccache upon
+			# pre-compiling the prefix header.
+			set (ENV{CCACHE_DISABLE} "true")
+		endif()
 	endif()
 	execute_process(
 		COMMAND ${_cmd}
