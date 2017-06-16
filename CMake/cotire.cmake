@@ -3135,7 +3135,7 @@ function (cotire_setup_unity_build_target _languages _configurations _target)
 		LINK_SEARCH_START_STATIC LINK_SEARCH_END_STATIC
 		STATIC_LIBRARY_FLAGS STATIC_LIBRARY_FLAGS_<CONFIG>
 		NO_SONAME SOVERSION VERSION
-		LINK_WHAT_YOU_USE)
+		LINK_WHAT_YOU_USE BUILD_RPATH)
 	# copy cmake stuff
 	cotire_copy_set_properties("${_configurations}" TARGET ${_target} ${_unityTargetName}
 		IMPLICIT_DEPENDS_INCLUDE_TRANSFORM RULE_LAUNCH_COMPILE RULE_LAUNCH_CUSTOM RULE_LAUNCH_LINK)
@@ -3144,7 +3144,7 @@ function (cotire_setup_unity_build_target _languages _configurations _target)
 		BUNDLE BUNDLE_EXTENSION FRAMEWORK FRAMEWORK_VERSION INSTALL_NAME_DIR
 		MACOSX_BUNDLE MACOSX_BUNDLE_INFO_PLIST MACOSX_FRAMEWORK_INFO_PLIST MACOSX_RPATH
 		OSX_ARCHITECTURES OSX_ARCHITECTURES_<CONFIG> PRIVATE_HEADER PUBLIC_HEADER RESOURCE XCTEST
-		IOS_INSTALL_COMBINED)
+		IOS_INSTALL_COMBINED XCODE_EXPLICIT_FILE_TYPE XCODE_PRODUCT_TYPE)
 	# copy Windows platform specific stuff
 	cotire_copy_set_properties("${_configurations}" TARGET ${_target} ${_unityTargetName}
 		GNUtoMS
@@ -3160,7 +3160,7 @@ function (cotire_setup_unity_build_target _languages _configurations _target)
 		VS_WINRT_COMPONENT VS_WINRT_EXTENSIONS VS_WINRT_REFERENCES
 		WIN32_EXECUTABLE WINDOWS_EXPORT_ALL_SYMBOLS
 		DEPLOYMENT_REMOTE_DIRECTORY VS_CONFIGURATION_TYPE
-		VS_SDK_REFERENCES)
+		VS_SDK_REFERENCES VS_USER_PROPS VS_DEBUGGER_WORKING_DIRECTORY)
 	# copy Android platform specific stuff
 	cotire_copy_set_properties("${_configurations}" TARGET ${_target} ${_unityTargetName}
 		ANDROID_API ANDROID_API_MIN ANDROID_GUI
