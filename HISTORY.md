@@ -1,3 +1,13 @@
+## 1.7.10 (2017-06-16)
+
+* CMake 3.8 compatibility.
+* CMake 3.8.0 Qt automoc support (thanks bilke).
+* fix Xcode recompiling every time builds happen (thanks gcamp).
+* disable PCH messages when `-Wno-pch-messages` flag exists (thanks kbinani).
+* work around ccache incompatibility with newer versions of GCC and Clang.
+* fix MinGW incompatibility with `BUILD_INTERFACE` generator expression.
+* fix handling of `CMAKE_INCLUDE_FLAG_SEP_<LANG>` variables.
+
 ## 1.7.9 (2016-12-08)
 
 * CMake 3.6 and 3.7 compatibility.
