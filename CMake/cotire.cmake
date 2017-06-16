@@ -106,6 +106,11 @@ if (POLICY CMP0054)
 	cmake_policy(SET CMP0054 NEW)
 endif()
 
+if (POLICY CMP0055)
+	# strict checking for break() command
+	cmake_policy(SET CMP0055 NEW)
+endif()
+
 include(CMakeParseArguments)
 include(ProcessorCount)
 
