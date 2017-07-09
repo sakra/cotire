@@ -4052,3 +4052,17 @@ else()
 	message (STATUS "cotire ${COTIRE_CMAKE_MODULE_VERSION} loaded.")
 
 endif()
+
+
+macro (cotire_add_library name)
+  set (orig_target ${name}_orig)
+  # add regular target with another name
+  add_library (${orig_target} ${ARGN})
+  set_target_properties (${orig_target} PROPERTIES EXCLUDE_FROM_ALL 1 EXCLUDE_FROM_DEFAULT_BUILD 1)
+  # set unity target name with the original name
+  set_target_properties (${orig_target} PROPERTIES COTIRE_UNITY_TARGET_NAME ${name})
+  # add unity build target
+  cotire (${orig_target})
+  set_target_properties (${name} PROPERTIES EXCLUDE_FROM_ALL 0 EXCLUDE_FROM_DEFAULT_BUILD 0)
+  set_target_properties (${name} PROPERTIES OUTPUT_NAME ${name})
+endmacro ()
