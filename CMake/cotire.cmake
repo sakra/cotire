@@ -2829,6 +2829,18 @@ function (cotire_compute_unity_max_number_of_includes _target _maxIncludesVar)
 	set (${_maxIncludesVar} ${_maxIncludes} PARENT_SCOPE)
 endfunction()
 
+function (cotire_get_source_list_without_host_file _hostFile _sourceFiles _sourceFilesWithoutHostFile)
+	get_filename_component(realPathToHostFile ${_hostFile} REALPATH)
+	set(outputList "")
+	foreach(sourceFile ${_sourceFiles})
+		get_filename_component(realPathToFile ${sourceFile} REALPATH)
+		if (NOT ${realPathToHostFile} STREQUAL ${realPathToFile})
+			list(APPEND outputList ${sourceFile})
+		endif()
+	endforeach()
+	set(${_sourceFilesWithoutHostFile} ${outputList} PARENT_SCOPE)
+endfunction()
+
 function (cotire_process_target_language _language _configurations _target _wholeTarget _cmdsVar)
 	set (${_cmdsVar} "" PARENT_SCOPE)
 	get_target_property(_targetSourceFiles ${_target} SOURCES)
@@ -2883,11 +2895,20 @@ function (cotire_process_target_language _language _configurations _target _whol
 		if (_targetUsePCH)
 			cotire_make_pch_file_path(${_language} ${_target} _pchFile)
 			if (_pchFile)
-				# first file in _sourceFiles is passed as the host file
+				# check for user provided prefix header files
+				get_property(_hostHeaderFile TARGET ${_target} PROPERTY COTIRE_${_language}_PREFIX_HEADER_HOST_INIT)
+				set(_hostFile "")
+				if (_hostHeaderFile)
+					set(_hostFile ${_hostHeaderFile})
+				else()
+					# first file in _sourceFiles is passed as the host file
+					list(GET _sourceFiles 0 _hostFile)
+				endif()
+				cotire_get_source_list_without_host_file(${_hostFile} "${_sourceFiles}" sourceFilesWithoutHostFile)
 				cotire_setup_pch_file_compilation(
-					${_language} ${_target} "${_targetConfigScript}" "${_prefixFile}" "${_pchFile}" ${_sourceFiles})
+					${_language} ${_target} "${_targetConfigScript}" "${_prefixFile}" "${_pchFile}" "${_hostFile}" ${sourceFilesWithoutHostFile})
 				cotire_setup_pch_file_inclusion(
-					${_language} ${_target} ${_wholeTarget} "${_prefixFile}" "${_pchFile}" ${_sourceFiles})
+					${_language} ${_target} ${_wholeTarget} "${_prefixFile}" "${_pchFile}" "${_hostFile}" ${sourceFilesWithoutHostFile})
 			endif()
 		elseif (_prefixHeaderFiles)
 			# user provided prefix header must be included unconditionally
@@ -3944,6 +3965,16 @@ else()
 			"If set, cotire will add the given header file(s) to the generated prefix header file."
 			"If not set, cotire will generate a prefix header by tracking the header files included by the unity source file."
 			"The property can be set to a user provided prefix header file (e.g., stdafx.h)."
+			"Defaults to empty."
+	)
+
+	define_property(
+		TARGET PROPERTY "COTIRE_<LANG>_PREFIX_HEADER_HOST_INIT"
+		BRIEF_DOCS "User provided host file to be used instead of the first one in the sources list."
+		FULL_DOCS
+			"If set, cotire will the given source file as a host file for precompiled header creation."
+			"If not set, cotire will use the first file passed as parameter to add_library or add_executable as host file."
+			"The property can be set to a user provided PCH host file (e.g., stdafx.cpp)."
 			"Defaults to empty."
 	)
 
