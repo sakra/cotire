@@ -254,6 +254,18 @@ function (cotire_filter_language_source_files _language _target _sourceFilesVar 
 			message (STATUS "Cotired ${_target} ${_language} sources: ${_cotiredSourceFiles}")
 		endif()
 	endif()
+	get_target_property(_targetAutoMoc ${_target} AUTOMOC)
+	get_target_property(_targetAutoUic ${_target} AUTOUIC)
+	get_target_property(_targetAutoRcc ${_target} AUTORCC)
+	if (_targetAutoMoc OR _targetAutoUic OR _targetAutoRcc)
+		# if the original target sources are subject to CMake's automatic Qt processing,
+		# also include implicitly generated <targetname>_automoc.cpp file
+		if (CMAKE_VERSION VERSION_LESS "3.8.0")
+			list (APPEND _sourceFiles "${CMAKE_CURRENT_BINARY_DIR}/${_target}_automoc.cpp")
+		else()
+			list (APPEND _sourceFiles "${CMAKE_CURRENT_BINARY_DIR}/${_target}_autogen/mocs_compilation.cpp")
+		endif()
+	endif()
 	set (${_sourceFilesVar} ${_sourceFiles} PARENT_SCOPE)
 	set (${_excludedSourceFilesVar} ${_excludedSourceFiles} PARENT_SCOPE)
 	set (${_cotiredSourceFilesVar} ${_cotiredSourceFiles} PARENT_SCOPE)
