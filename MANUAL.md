@@ -340,8 +340,15 @@ file. The path is interpreted relative to the target source directory:
     cotire(example)
 
 If the prefix header `stdafx.h` needs an accompanying source file (e.g., `stdafx.cpp`) in order
-to be precompiled properly, that source file needs to be the first one on the list of source
-files in the target's `add_executable` or `add_library` call.
+to be precompiled properly, you should set the target property `COTIRE_CXX_PREFIX_HEADER_HOST_INIT`
+to this file:
+
+    set_target_properties(example PROPERTIES COTIRE_CXX_PREFIX_HEADER_INIT "stdafx.h")
+    set_target_properties(example PROPERTIES COTIRE_CXX_PREFIX_HEADER_HOST_INIT "stdafx.cpp")
+    cotire(example)
+
+Otherwise, that source file needs to be the first one on the list of source files in the target's
+`add_executable` or `add_library` call.
 
 The property `COTIRE_CXX_PREFIX_HEADER_INIT` can also be set to a list of header files which will
 then make up the contents of the generated prefix header.
