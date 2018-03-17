@@ -1505,7 +1505,7 @@ function (cotire_generate_prefix_header _prefixFile)
 		endif()
 		string (REPLACE ";" "\n" _unparsedLines "${_unparsedLines}")
 	endif()
-	file (WRITE "${_unparsedLinesFile}" "${_unparsedLines}")
+	file (WRITE "${_unparsedLinesFile}" "${_unparsedLines}\n")
 endfunction()
 
 function (cotire_add_makedep_flags _language _compilerID _compilerVersion _flagsVar)
