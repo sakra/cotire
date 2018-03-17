@@ -3251,7 +3251,8 @@ function (cotire_setup_unity_build_target _languages _configurations _target)
 		INTERFACE_AUTOUIC_OPTIONS NO_SYSTEM_FROM_IMPORTED)
 	# copy link stuff
 	cotire_copy_set_properties("${_configurations}" TARGET ${_target} ${_unityTargetName}
-		BUILD_WITH_INSTALL_RPATH INSTALL_RPATH INSTALL_RPATH_USE_LINK_PATH SKIP_BUILD_RPATH
+		BUILD_WITH_INSTALL_RPATH BUILD_WITH_INSTALL_NAME_DIR
+		INSTALL_RPATH INSTALL_RPATH_USE_LINK_PATH SKIP_BUILD_RPATH
 		LINKER_LANGUAGE LINK_DEPENDS LINK_DEPENDS_NO_SHARED
 		LINK_FLAGS LINK_FLAGS_<CONFIG>
 		LINK_INTERFACE_LIBRARIES LINK_INTERFACE_LIBRARIES_<CONFIG>
@@ -3293,6 +3294,10 @@ function (cotire_setup_unity_build_target _languages _configurations _target)
 		ANDROID_NATIVE_LIB_DEPENDENCIES ANDROID_NATIVE_LIB_DIRECTORIES
 		ANDROID_PROCESS_MAX ANDROID_PROGUARD ANDROID_PROGUARD_CONFIG_PATH
 		ANDROID_SECURE_PROPS_PATH ANDROID_SKIP_ANT_STEP ANDROID_STL_TYPE)
+	# copy CUDA platform specific stuff
+	cotire_copy_set_properties("${_configurations}" TARGET ${_target} ${_unityTargetName}
+		CUDA_PTX_COMPILATION CUDA_SEPARABLE_COMPILATION CUDA_RESOLVE_DEVICE_SYMBOLS
+		CUDA_EXTENSIONS CUDA_STANDARD CUDA_STANDARD_REQUIRED)
 	# use output name from original target
 	get_target_property(_targetOutputName ${_unityTargetName} OUTPUT_NAME)
 	if (NOT _targetOutputName)
