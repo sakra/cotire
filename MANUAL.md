@@ -727,6 +727,12 @@ different directory and you may get odd messages about missing source files.
 known issues
 ------------
 
+### generator expressions
+
+cotire uses the CMake command `file(GENERATE ...` to expand generator expressions used in various
+compilation settings. This command does not handle certain CMake generator expressions like
+`$<CXX_COMPILER_ID:...>` correctly.
+
 ### Ninja compatibility
 
 Under Ninja indirect prefix header dependencies are ignored by the generated build system. Cotire
