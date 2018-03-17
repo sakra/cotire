@@ -1535,7 +1535,7 @@ function (cotire_add_makedep_flags _language _compilerID _compilerVersion _flags
 			# append to list
 			list (APPEND _flags -H -E)
 			if (NOT "${_compilerVersion}" VERSION_LESS "4.3.0")
-				list (APPEND _flags "-fdirectives-only")
+				list (APPEND _flags -fdirectives-only)
 			endif()
 		else()
 			# return as a flag string
@@ -1755,10 +1755,10 @@ function (cotire_add_pch_compilation_flags _language _compilerID _compilerVersio
 				if ("${_language}" STREQUAL "CXX")
 					list (APPEND _flags -Kc++)
 				endif()
-				list (APPEND _flags "-include" "${_prefixFile}" "-pch-dir" "${_pchDir}" "-pch-create" "${_pchName}" "-fsyntax-only" "${_hostFile}")
+				list (APPEND _flags -include "${_prefixFile}" -pch-dir "${_pchDir}" -pch-create "${_pchName}" -fsyntax-only "${_hostFile}")
 				if (NOT "${_compilerVersion}" VERSION_LESS "13.1.0")
 					if (NOT _pchSuppressMessages)
-						list (APPEND _flags "-Wpch-messages")
+						list (APPEND _flags -Wpch-messages)
 					endif()
 				endif()
 			else()
@@ -1818,7 +1818,7 @@ function (cotire_add_prefix_pch_inclusion_flags _language _compilerID _compilerV
 		# note: ccache requires the -include flag to be used in order to process precompiled header correctly
 		if (_flags)
 			# append to list
-			list (APPEND _flags "-Winvalid-pch" "-include" "${_prefixFile}")
+			list (APPEND _flags -Winvalid-pch -include "${_prefixFile}")
 		else()
 			# return as a flag string
 			set (_flags "-Winvalid-pch -include \"${_prefixFile}\"")
@@ -1830,7 +1830,7 @@ function (cotire_add_prefix_pch_inclusion_flags _language _compilerID _compilerV
 			# note: ccache requires the -include flag to be used in order to process precompiled header correctly
 			if (_flags)
 				# append to list
-				list (APPEND -include "${_prefixFile}")
+				list (APPEND _flags -include "${_prefixFile}")
 			else()
 				# return as a flag string
 				set (_flags "-include \"${_prefixFile}\"")
@@ -1907,10 +1907,10 @@ function (cotire_add_prefix_pch_inclusion_flags _language _compilerID _compilerV
 				endif()
 				if (_flags)
 					# append to list
-					list (APPEND _flags "-include" "${_prefixFile}" "-pch-dir" "${_pchDir}" "-pch-use" "${_pchName}")
+					list (APPEND _flags -include "${_prefixFile}" -pch-dir "${_pchDir}" -pch-use "${_pchName}")
 					if (NOT "${_compilerVersion}" VERSION_LESS "13.1.0")
 						if (NOT _pchSuppressMessages)
-							list (APPEND _flags "-Wpch-messages")
+							list (APPEND _flags -Wpch-messages)
 						endif()
 					endif()
 				else()
@@ -1926,7 +1926,7 @@ function (cotire_add_prefix_pch_inclusion_flags _language _compilerID _compilerV
 				# no precompiled header, force inclusion of prefix header
 				if (_flags)
 					# append to list
-					list (APPEND _flags "-include" "${_prefixFile}")
+					list (APPEND _flags -include "${_prefixFile}")
 				else()
 					# return as a flag string
 					set (_flags "-include \"${_prefixFile}\"")
@@ -2948,7 +2948,11 @@ function (cotire_compute_unity_max_number_of_includes _target _maxIncludesVar)
 	set (_sourceFiles ${ARGN})
 	get_target_property(_maxIncludes ${_target} COTIRE_UNITY_SOURCE_MAXIMUM_NUMBER_OF_INCLUDES)
 	if (_maxIncludes MATCHES "(-j|--parallel|--jobs) ?([0-9]*)")
-		set (_numberOfThreads "${CMAKE_MATCH_2}")
+		if (DEFINED CMAKE_MATCH_2)
+			set (_numberOfThreads "${CMAKE_MATCH_2}")
+		else()
+			set (_numberOfThreads "")
+		endif()
 		if (NOT _numberOfThreads)
 			# use all available cores
 			ProcessorCount(_numberOfThreads)
