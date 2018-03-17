@@ -3856,7 +3856,7 @@ else()
 		FULL_DOCS
 			"The variable can be set to an integer > 0."
 			"If a target contains less than that number of source files, cotire will not enable the use of the precompiled header for the target."
-			"If not defined, defaults to 3."
+			"If not defined, defaults to 2."
 	)
 
 	define_property(
