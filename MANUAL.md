@@ -324,7 +324,7 @@ directories. A target inherits the property value from its enclosing directory.
 ### disabling precompiled headers for small targets
 
 The cache variable `COTIRE_MINIMUM_NUMBER_OF_TARGET_SOURCES` can be set to the minimum number of
-source files required to enable the use of a precompiled header. It defaults to 3. To override the
+source files required to enable the use of a precompiled header. It defaults to 2. To override the
 default, run `cmake` with the following options:
 
     $ cmake -D COTIRE_MINIMUM_NUMBER_OF_TARGET_SOURCES=5 <path-to-source>

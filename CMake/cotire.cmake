@@ -3752,7 +3752,7 @@ else()
 	set (COTIRE_UNITY_SOURCE_EXCLUDE_EXTENSIONS "m;mm" CACHE STRING
 		"Ignore sources with the listed file extensions from the generated unity source.")
 
-	set (COTIRE_MINIMUM_NUMBER_OF_TARGET_SOURCES "3" CACHE STRING
+	set (COTIRE_MINIMUM_NUMBER_OF_TARGET_SOURCES "2" CACHE STRING
 		"Minimum number of sources in target required to enable use of precompiled header.")
 
 	if (NOT DEFINED COTIRE_MAXIMUM_NUMBER_OF_UNITY_INCLUDES_INIT)
