@@ -43,7 +43,7 @@ if (NOT CMAKE_SCRIPT_MODE_FILE)
 endif()
 
 set (COTIRE_CMAKE_MODULE_FILE "${CMAKE_CURRENT_LIST_FILE}")
-set (COTIRE_CMAKE_MODULE_VERSION "1.7.11")
+set (COTIRE_CMAKE_MODULE_VERSION "1.8.0")
 
 # activate select policies
 if (POLICY CMP0025)
@@ -1545,16 +1545,36 @@ function (cotire_add_makedep_flags _language _compilerID _compilerVersion _flags
 			endif()
 		endif()
 	elseif (_compilerID MATCHES "Clang")
-		# Clang options used
-		# -H print the name of each header file used
-		# -E invoke preprocessor
-		# -fno-color-diagnostics don't prints diagnostics in color
-		if (_flags)
-			# append to list
-			list (APPEND _flags -H -E -fno-color-diagnostics)
-		else()
-			# return as a flag string
-			set (_flags "-H -E -fno-color-diagnostics")
+		if (UNIX)
+			# Clang options used
+			# -H print the name of each header file used
+			# -E invoke preprocessor
+			# -fno-color-diagnostics do not print diagnostics in color
+			# -Eonly just run preprocessor, no output
+			if (_flags)
+				# append to list
+				list (APPEND _flags -H -E -fno-color-diagnostics -Xclang -Eonly)
+			else()
+				# return as a flag string
+				set (_flags "-H -E -fno-color-diagnostics -Xclang -Eonly")
+			endif()
+		elseif (WIN32)
+			# Clang-cl.exe options used
+			# /TC treat all files named on the command line as C source files
+			# /TP treat all files named on the command line as C++ source files
+			# /EP preprocess to stdout without #line directives
+			# -H print the name of each header file used
+			# -fno-color-diagnostics do not print diagnostics in color
+			# -Eonly just run preprocessor, no output
+			set (_sourceFileTypeC "/TC")
+			set (_sourceFileTypeCXX "/TP")
+			if (_flags)
+				# append to list
+				list (APPEND _flags "${_sourceFileType${_language}}" /EP -fno-color-diagnostics -Xclang -H -Xclang -Eonly)
+			else()
+				# return as a flag string
+				set (_flags "${_sourceFileType${_language}} /EP -fno-color-diagnostics -Xclang -H -Xclang -Eonly")
+			endif()
 		endif()
 	elseif (_compilerID MATCHES "Intel")
 		if (WIN32)
@@ -1628,8 +1648,8 @@ function (cotire_add_pch_compilation_flags _language _compilerID _compilerVersio
 				set (_flags "${_flags} /Zm${COTIRE_PCH_MEMORY_SCALING_FACTOR}")
 			endif()
 		endif()
-	elseif (_compilerID MATCHES "GNU|Clang")
-		# GCC / Clang options used
+	elseif (_compilerID MATCHES "GNU")
+		# GCC options used
 		# -x specify the source language
 		# -c compile but do not link
 		# -o place output in file
@@ -1639,10 +1659,51 @@ function (cotire_add_pch_compilation_flags _language _compilerID _compilerVersio
 		set (_xLanguage_CXX "c++-header")
 		if (_flags)
 			# append to list
-			list (APPEND _flags "-x" "${_xLanguage_${_language}}" "-c" "${_prefixFile}" -o "${_pchFile}")
+			list (APPEND _flags -x "${_xLanguage_${_language}}" -c "${_prefixFile}" -o "${_pchFile}")
 		else()
 			# return as a flag string
 			set (_flags "-x ${_xLanguage_${_language}} -c \"${_prefixFile}\" -o \"${_pchFile}\"")
+		endif()
+	elseif (_compilerID MATCHES "Clang")
+		if (UNIX)
+			# Clang options used
+			# -x specify the source language
+			# -c compile but do not link
+			# -o place output in file
+			# -fno-pch-timestamp disable inclusion of timestamp in precompiled headers (clang 4.0.0+)
+			set (_xLanguage_C "c-header")
+			set (_xLanguage_CXX "c++-header")
+			if (_flags)
+				# append to list
+				list (APPEND _flags -x "${_xLanguage_${_language}}" -c "${_prefixFile}" -o "${_pchFile}")
+				if (NOT "${_compilerVersion}" VERSION_LESS "4.0.0")
+					list (APPEND _flags -Xclang -fno-pch-timestamp)
+				endif()
+			else()
+				# return as a flag string
+				set (_flags "-x ${_xLanguage_${_language}} -c \"${_prefixFile}\" -o \"${_pchFile}\"")
+				if (NOT "${_compilerVersion}" VERSION_LESS "4.0.0")
+					set (_flags "${_flags} -Xclang -fno-pch-timestamp")
+				endif()
+			endif()
+		elseif (WIN32)
+			# Clang-cl.exe options used
+			# /Yc creates a precompiled header file
+			# /Fp specifies precompiled header binary file name
+			# /FI forces inclusion of file
+			# /Zs syntax check only
+			# /TC treat all files named on the command line as C source files
+			# /TP treat all files named on the command line as C++ source files
+			set (_sourceFileTypeC "/TC")
+			set (_sourceFileTypeCXX "/TP")
+			if (_flags)
+				# append to list
+				list (APPEND _flags "${_sourceFileType${_language}}"
+						"/Yc${_prefixFile}" "/Fp${_pchFile}" "/FI${_prefixFile}" /Zs "${_hostFile}")
+			else()
+				# return as a flag string
+				set (_flags "/Yc\"${_prefixFile}\" /Fp\"${_pchFile}\" /FI\"${_prefixFile}\"")
+			endif()
 		endif()
 	elseif (_compilerID MATCHES "Intel")
 		if (WIN32)
@@ -1763,17 +1824,40 @@ function (cotire_add_prefix_pch_inclusion_flags _language _compilerID _compilerV
 			set (_flags "-Winvalid-pch -include \"${_prefixFile}\"")
 		endif()
 	elseif (_compilerID MATCHES "Clang")
-		# Clang options used
-		# -include process include file as the first line of the primary source file
-		# -include-pch include precompiled header file
-		# -Qunused-arguments don't emit warning for unused driver arguments
-		# note: ccache requires the -include flag to be used in order to process precompiled header correctly
-		if (_flags)
-			# append to list
-			list (APPEND _flags "-Qunused-arguments" "-include" "${_prefixFile}")
-		else()
-			# return as a flag string
-			set (_flags "-Qunused-arguments -include \"${_prefixFile}\"")
+		if (UNIX)
+			# Clang options used
+			# -include process include file as the first line of the primary source file
+			# note: ccache requires the -include flag to be used in order to process precompiled header correctly
+			if (_flags)
+				# append to list
+				list (APPEND -include "${_prefixFile}")
+			else()
+				# return as a flag string
+				set (_flags "-include \"${_prefixFile}\"")
+			endif()
+		elseif (WIN32)
+			# Clang-cl.exe options used
+			# /Yu uses a precompiled header file during build
+			# /Fp specifies precompiled header binary file name
+			# /FI forces inclusion of file
+			if (_pchFile)
+				if (_flags)
+					# append to list
+					list (APPEND _flags "/Yu${_prefixFile}" "/Fp${_pchFile}" "/FI${_prefixFile}")
+				else()
+					# return as a flag string
+					set (_flags "/Yu\"${_prefixFile}\" /Fp\"${_pchFile}\" /FI\"${_prefixFile}\"")
+				endif()
+			else()
+				# no precompiled header, force inclusion of prefix header
+				if (_flags)
+					# append to list
+					list (APPEND _flags "/FI${_prefixFile}")
+				else()
+					# return as a flag string
+					set (_flags "/FI\"${_prefixFile}\"")
+				endif()
+			endif()
 		endif()
 	elseif (_compilerID MATCHES "Intel")
 		if (WIN32)
@@ -1883,7 +1967,7 @@ function (cotire_precompile_prefix_header _prefixFile _pchFile _hostFile)
 	if (MSVC_IDE OR _option_COMPILER_ID MATCHES "MSVC")
 		# cl.exe messes with the output streams unless the environment variable VS_UNICODE_OUTPUT is cleared
 		unset (ENV{VS_UNICODE_OUTPUT})
-	elseif (_option_COMPILER_ID MATCHES "GNU|Clang")
+	elseif (_option_COMPILER_ID MATCHES "Clang" AND _option_COMPILER_VERSION VERSION_LESS "4.0.0")
 		if (_option_COMPILER_LAUNCHER MATCHES "ccache" OR
 			_option_COMPILER_EXECUTABLE MATCHES "ccache")
 			# Newer versions of Clang embed a compilation timestamp into the precompiled header binary,
@@ -1916,8 +2000,16 @@ function (cotire_check_precompiled_header_support _language _target _msgVar)
 			set (${_msgVar} "" PARENT_SCOPE)
 		endif()
 	elseif (CMAKE_${_language}_COMPILER_ID MATCHES "Clang")
-		# all Clang versions have PCH support
-		set (${_msgVar} "" PARENT_SCOPE)
+		if (UNIX)
+			# all Unix Clang versions have PCH support
+			set (${_msgVar} "" PARENT_SCOPE)
+		elseif (WIN32)
+			# only clang-cl is supported under Windows
+			get_filename_component(_compilerName "${CMAKE_${_language}_COMPILER}" NAME_WE)
+			if (NOT _compilerName MATCHES "cl$")
+				set (${_msgVar} "${_unsupportedCompiler} version ${CMAKE_${_language}_COMPILER_VERSION}. Use clang-cl instead." PARENT_SCOPE)
+			endif()
+		endif()
 	elseif (CMAKE_${_language}_COMPILER_ID MATCHES "Intel")
 		# Intel PCH support requires version >= 8.0.0
 		if ("${CMAKE_${_language}_COMPILER_VERSION}" VERSION_LESS "8.0.0")
@@ -2283,8 +2375,9 @@ endfunction()
 
 function (cotire_setup_pch_file_compilation _language _target _targetScript _prefixFile _pchFile _hostFile)
 	set (_sourceFiles ${ARGN})
-	if (CMAKE_${_language}_COMPILER_ID MATCHES "MSVC|Intel")
-		# for Visual Studio and Intel, we attach the precompiled header compilation to the host file
+	if (CMAKE_${_language}_COMPILER_ID MATCHES "MSVC|Intel" OR
+		(WIN32 AND CMAKE_${_language}_COMPILER_ID MATCHES "Clang"))
+		# for MSVC, Intel and Clang-cl, we attach the precompiled header compilation to the host file
 		# the remaining files include the precompiled header, see cotire_setup_pch_file_inclusion
 		if (_sourceFiles)
 			set (_flags "")
@@ -2329,8 +2422,9 @@ function (cotire_setup_pch_file_compilation _language _target _targetScript _pre
 endfunction()
 
 function (cotire_setup_pch_file_inclusion _language _target _wholeTarget _prefixFile _pchFile _hostFile)
-	if (CMAKE_${_language}_COMPILER_ID MATCHES "MSVC|Intel")
-		# for Visual Studio and Intel, we include the precompiled header in all but the host file
+	if (CMAKE_${_language}_COMPILER_ID MATCHES "MSVC|Intel" OR
+		(WIN32 AND CMAKE_${_language}_COMPILER_ID MATCHES "Clang"))
+		# for MSVC, Intel and clang-cl, we include the precompiled header in all but the host file
 		# the host file does the precompiled header compilation, see cotire_setup_pch_file_compilation
 		set (_sourceFiles ${ARGN})
 		list (LENGTH _sourceFiles _numberOfSourceFiles)
@@ -2476,9 +2570,10 @@ function (cotire_setup_target_pch_usage _languages _target _wholeTarget)
 		# if this is a single-language target without any excluded files
 		if (_wholeTarget)
 			set (_language "${_languages}")
-			# for Visual Studio and Intel, precompiled header inclusion is always done on the source file level
+			# for MSVC, Intel and clang-cl, precompiled header inclusion is always done on the source file level
 			# see cotire_setup_pch_file_inclusion
-			if (NOT CMAKE_${_language}_COMPILER_ID MATCHES "MSVC|Intel")
+			if (NOT CMAKE_${_language}_COMPILER_ID MATCHES "MSVC|Intel" AND NOT
+				(WIN32 AND CMAKE_${_language}_COMPILER_ID MATCHES "Clang"))
 				get_property(_prefixFile TARGET ${_target} PROPERTY COTIRE_${_language}_PREFIX_HEADER)
 				if (_prefixFile)
 					get_property(_pchFile TARGET ${_target} PROPERTY COTIRE_${_language}_PRECOMPILED_HEADER)
@@ -2949,8 +3044,9 @@ function (cotire_setup_pch_target _languages _configurations _target)
 		set (_dependsFiles "")
 		foreach (_language ${_languages})
 			set (_props COTIRE_${_language}_PREFIX_HEADER COTIRE_${_language}_UNITY_SOURCE)
-			if (NOT CMAKE_${_language}_COMPILER_ID MATCHES "MSVC|Intel")
-				# Visual Studio and Intel only create precompiled header as a side effect
+			if (NOT CMAKE_${_language}_COMPILER_ID MATCHES "MSVC|Intel" AND NOT
+				(WIN32 AND CMAKE_${_language}_COMPILER_ID MATCHES "Clang"))
+				# MSVC, Intel and clang-cl only create precompiled header as a side effect
 				list (INSERT _props 0 COTIRE_${_language}_PRECOMPILED_HEADER)
 			endif()
 			cotire_get_first_set_property_value(_dependsFile TARGET ${_target} ${_props})
