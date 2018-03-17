@@ -3,7 +3,7 @@
 # See the cotire manual for usage hints.
 #
 #=============================================================================
-# Copyright 2012-2017 Sascha Kratky
+# Copyright 2012-2018 Sascha Kratky
 #
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
@@ -721,7 +721,7 @@ function (cotire_get_target_compile_definitions _config _language _target _defin
 		endif()
 	endforeach()
 	# parse additional compile definitions from target compile flags
-	# and don't look at directory compile definitions, which we already handled
+	# and do not look at directory compile definitions, which we already handled
 	set (_targetFlags "")
 	cotire_get_target_compile_flags("${_config}" "${_language}" "${_target}" _targetFlags)
 	cotire_filter_compile_flags("${_language}" "D" _definitions _ignore ${_targetFlags})
@@ -1086,12 +1086,11 @@ endmacro()
 
 macro (cotire_parse_line _line _headerFileVar _headerDepthVar)
 	if (MSVC)
-		# cl.exe /showIncludes output looks different depending on the language pack used, e.g.:
+		# cl.exe /showIncludes produces different output, depending on the language pack used, e.g.:
 		# English: "Note: including file:   C:\directory\file"
 		# German: "Hinweis: Einlesen der Datei:   C:\directory\file"
 		# We use a very general regular expression, relying on the presence of the : characters
 		if (_line MATCHES "( +)([a-zA-Z]:[^:]+)$")
-			# Visual Studio compiler output
 			string (LENGTH "${CMAKE_MATCH_1}" ${_headerDepthVar})
 			get_filename_component(${_headerFileVar} "${CMAKE_MATCH_2}" ABSOLUTE)
 		else()
@@ -1882,7 +1881,7 @@ function (cotire_precompile_prefix_header _prefixFile _pchFile _hostFile)
 	elseif (_option_COMPILER_ID MATCHES "GNU|Clang")
 		if (_option_COMPILER_LAUNCHER MATCHES "ccache" OR
 			_option_COMPILER_EXECUTABLE MATCHES "ccache")
-			# Newer versions of Clang and GCC seem to embed a compilation timestamp into the precompiled header binary,
+			# Newer versions of Clang embed a compilation timestamp into the precompiled header binary,
 			# which results in "file has been modified since the precompiled header was built" errors if ccache is used.
 			# We work around the problem by disabling ccache upon pre-compiling the prefix header.
 			set (ENV{CCACHE_DISABLE} "true")
@@ -1901,7 +1900,7 @@ function (cotire_check_precompiled_header_support _language _target _msgVar)
 	set (_unsupportedCompiler
 		"Precompiled headers not supported for ${_language} compiler ${CMAKE_${_language}_COMPILER_ID}")
 	if (CMAKE_${_language}_COMPILER_ID MATCHES "MSVC")
-		# supported since Visual Studio C++ 6.0
+		# PCH supported since Visual Studio C++ 6.0
 		# and CMake does not support an earlier version
 		set (${_msgVar} "" PARENT_SCOPE)
 	elseif (CMAKE_${_language}_COMPILER_ID MATCHES "GNU")
@@ -2502,7 +2501,8 @@ function (cotire_setup_unity_generation_commands _language _target _targetScript
 			set_property (SOURCE "${_unityFile}" PROPERTY OBJECT_DEPENDS ${_objectDependsPaths})
 		endif()
 		if (WIN32 AND CMAKE_${_language}_COMPILER_ID MATCHES "MSVC|Intel")
-			# unity file compilation results in potentially huge object file, thus use /bigobj by default unter MSVC and Windows Intel
+			# unity file compilation results in potentially huge object file,
+			# thus use /bigobj by default unter cl.exe and Windows Intel
 			set_property (SOURCE "${_unityFile}" APPEND_STRING PROPERTY COMPILE_FLAGS "/bigobj")
 		endif()
 		cotire_set_cmd_to_prologue(_unityCmd)
