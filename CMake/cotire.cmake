@@ -1928,19 +1928,25 @@ function (cotire_check_precompiled_header_support _language _target _msgVar)
 	else()
 		set (${_msgVar} "${_unsupportedCompiler}." PARENT_SCOPE)
 	endif()
+	# check if ccache is used as a compiler launcher
 	get_target_property(_launcher ${_target} ${_language}_COMPILER_LAUNCHER)
-	if (CMAKE_${_language}_COMPILER MATCHES "ccache" OR _launcher MATCHES "ccache")
+	get_filename_component(_realCompilerExe "${CMAKE_${_language}_COMPILER}" REALPATH)
+	if (_realCompilerExe MATCHES "ccache" OR _launcher MATCHES "ccache")
+		# verify that ccache configuration is compatible with precompiled headers
+		# always check environment variable CCACHE_SLOPPINESS, because earlier versions of ccache
+		# do not report the "sloppiness" setting correctly upon printing ccache configuration
 		if (DEFINED ENV{CCACHE_SLOPPINESS})
-			if (NOT "$ENV{CCACHE_SLOPPINESS}" MATCHES "pch_defines" OR NOT "$ENV{CCACHE_SLOPPINESS}" MATCHES "time_macros")
+			if (NOT "$ENV{CCACHE_SLOPPINESS}" MATCHES "pch_defines" OR
+				NOT "$ENV{CCACHE_SLOPPINESS}" MATCHES "time_macros")
 				set (${_msgVar}
 					"ccache requires the environment variable CCACHE_SLOPPINESS to be set to \"pch_defines,time_macros\"."
 					PARENT_SCOPE)
 			endif()
 		else()
-			if (_launcher MATCHES "ccache")
-				get_filename_component(_ccacheExe "${_launcher}" REALPATH)
+			if (_realCompilerExe MATCHES "ccache")
+				set (_ccacheExe "${_realCompilerExe}")
 			else()
-				get_filename_component(_ccacheExe "${CMAKE_${_language}_COMPILER}" REALPATH)
+				set (_ccacheExe "${_launcher}")
 			endif()
 			execute_process(
 				COMMAND "${_ccacheExe}" "--print-config"
@@ -1948,9 +1954,10 @@ function (cotire_check_precompiled_header_support _language _target _msgVar)
 				RESULT_VARIABLE _result
 				OUTPUT_VARIABLE _ccacheConfig OUTPUT_STRIP_TRAILING_WHITESPACE
 				ERROR_QUIET)
-			if (_result OR NOT
-				_ccacheConfig MATCHES "sloppiness.*=.*time_macros" OR NOT
-				_ccacheConfig MATCHES "sloppiness.*=.*pch_defines")
+			if (_result)
+				set (${_msgVar} "ccache configuration cannot be determined." PARENT_SCOPE)
+			elseif (NOT _ccacheConfig MATCHES "sloppiness.*=.*time_macros" OR
+				NOT _ccacheConfig MATCHES "sloppiness.*=.*pch_defines")
 				set (${_msgVar}
 					"ccache requires configuration setting \"sloppiness\" to be set to \"pch_defines,time_macros\"."
 					PARENT_SCOPE)
