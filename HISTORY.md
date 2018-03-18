@@ -1,3 +1,16 @@
+## 1.8.0 (2018-03-18)
+
+* support for clang-cl.exe under Windows.
+* faster prefix header generation for Clang.
+* enable parallel compilation of unity target for MSVC.
+* CMake 3.9 and 3.10 compatibility fixes.
+* disable inclusion of timestamp in precompiled headers for Clang.
+* work around ccache reporting incorrect configuration.
+* honor `MANUALLY_ADDED_DEPENDENCIES` property upon generation of unity targets.
+* use default setting of 2 for `COTIRE_MINIMUM_NUMBER_OF_TARGET_SOURCES`.
+* drop broken support for unity building of targets with automatic CMake Qt processing turned on.
+* manual updates.
+
 ## 1.7.10 (2017-06-16)
 
 * CMake 3.8 compatibility.
@@ -18,7 +31,7 @@
 * convert Windows paths in include directories to CMake paths (thanks wdx04).
 * replace object library with corresponding unity object library when using `COPY_UNITY` linking strategy.
 * better error reporting from prefix header generation.
- 
+
 ## 1.7.8 (2016-03-27)
 
 * fix `COPY_UNITY` linking strategy for private link dependencies.
