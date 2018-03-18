@@ -239,7 +239,13 @@ function (cotire_filter_language_source_files _language _target _sourceFilesVar 
 				# add to excluded sources, if file has custom compile flags
 				list (APPEND _excludedSourceFiles "${_sourceFile}")
 			else()
-				list (APPEND _sourceFiles "${_sourceFile}")
+				get_source_file_property(_sourceCompileOptions "${_sourceFile}" COMPILE_OPTIONS)
+				if (_sourceCompileOptions)
+					# add to excluded sources, if file has list of custom compile options
+					list (APPEND _excludedSourceFiles "${_sourceFile}")
+				else()
+					list (APPEND _sourceFiles "${_sourceFile}")
+				endif()
 			endif()
 		endif()
 	endforeach()
