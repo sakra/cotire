@@ -773,19 +773,19 @@ is not compatible with those of precompiled header file) upon compilation of cot
 
 Cotire is not compatible with [Xoreax IncrediBuild][XGE].
 
-[1260]:http://www.cmake.org/Bug/view.php?id=1260
+[1260]:https://cmake.org/Bug/view.php?id=1260
 [ccch]:https://ccache.samba.org/
 [ccch_pch]:https://ccache.samba.org/manual.html#_precompiled_headers
-[clang_pch]:http://clang.llvm.org/docs/UsersManual.html#precompiled-headers
+[clang_pch]:https://clang.llvm.org/docs/UsersManual.html#precompiled-headers
 [gcc_pch]:https://gcc.gnu.org/onlinedocs/gcc/Precompiled-Headers.html
 [msvc_pch]:https://msdn.microsoft.com/en-us/library/szfdksca(v=vs.90).aspx
 [msvc_pch_create]:https://msdn.microsoft.com/en-us/library/7zc28563(v=vs.90).aspx
 [msvc_pch_use]:https://msdn.microsoft.com/en-us/library/z0atkd6c(v=vs.90).aspx
 [ninja_issue]:https://cmake.org/Bug/view.php?id=13234
-[EoUB]:https://engineering-game-dev.com/2009/12/15/the-evils-of-unity-builds/
+[EoUB]:http://altdevblog.com/2011/08/14/the-evils-of-unity-builds/
 [pch]:https://en.wikipedia.org/wiki/Precompiled_header
 [scu]:https://en.wikipedia.org/wiki/Single_Compilation_Unit
-[objlib]:https://cmake.org/cmake/help/v2.8.12/cmake.html#command:add_library
+[objlib]:https://cmake.org/cmake/help/latest/command/add_library.html#object-libraries
 [pfh]:https://en.wikipedia.org/wiki/Prefix_header
 [icc_linux]:https://software.intel.com/en-us/c-compilers/ipsxe-support
 [XGE]:https://www.incredibuild.com/
