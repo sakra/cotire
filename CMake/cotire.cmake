@@ -1693,6 +1693,9 @@ function (cotire_add_pch_compilation_flags _language _compilerID _compilerVersio
 				endif()
 			endif()
 		elseif (WIN32)
+			file (TO_NATIVE_PATH "${_prefixFile}" _prefixFileNative)
+			file (TO_NATIVE_PATH "${_pchFile}" _pchFileNative)
+			file (TO_NATIVE_PATH "${_hostFile}" _hostFileNative)
 			# Clang-cl.exe options used
 			# /Yc creates a precompiled header file
 			# /Fp specifies precompiled header binary file name
@@ -1705,10 +1708,10 @@ function (cotire_add_pch_compilation_flags _language _compilerID _compilerVersio
 			if (_flags)
 				# append to list
 				list (APPEND _flags "${_sourceFileType${_language}}"
-						"/Yc${_prefixFile}" "/Fp${_pchFile}" "/FI${_prefixFile}" /Zs "${_hostFile}")
+						"/Yc${_prefixFileNative}" "/Fp${_pchFileNative}" "/FI${_prefixFileNative}" /Zs "${_hostFileNative}")
 			else()
 				# return as a flag string
-				set (_flags "/Yc\"${_prefixFile}\" /Fp\"${_pchFile}\" /FI\"${_prefixFile}\"")
+				set (_flags "/Yc\"${_prefixFileNative}\" /Fp\"${_pchFileNative}\" /FI\"${_prefixFileNative}\"")
 			endif()
 		endif()
 	elseif (_compilerID MATCHES "Intel")
@@ -1842,26 +1845,28 @@ function (cotire_add_prefix_pch_inclusion_flags _language _compilerID _compilerV
 				set (_flags "-include \"${_prefixFile}\"")
 			endif()
 		elseif (WIN32)
+			file (TO_NATIVE_PATH "${_prefixFile}" _prefixFileNative)
 			# Clang-cl.exe options used
 			# /Yu uses a precompiled header file during build
 			# /Fp specifies precompiled header binary file name
 			# /FI forces inclusion of file
 			if (_pchFile)
+				file (TO_NATIVE_PATH "${_pchFile}" _pchFileNative)
 				if (_flags)
 					# append to list
-					list (APPEND _flags "/Yu${_prefixFile}" "/Fp${_pchFile}" "/FI${_prefixFile}")
+					list (APPEND _flags "/Yu${_prefixFileNative}" "/Fp${_pchFileNative}" "/FI${_prefixFileNative}")
 				else()
 					# return as a flag string
-					set (_flags "/Yu\"${_prefixFile}\" /Fp\"${_pchFile}\" /FI\"${_prefixFile}\"")
+					set (_flags "/Yu\"${_prefixFileNative}\" /Fp\"${_pchFileNative}\" /FI\"${_prefixFileNative}\"")
 				endif()
 			else()
 				# no precompiled header, force inclusion of prefix header
 				if (_flags)
 					# append to list
-					list (APPEND _flags "/FI${_prefixFile}")
+					list (APPEND _flags "/FI${_prefixFileNative}")
 				else()
 					# return as a flag string
-					set (_flags "/FI\"${_prefixFile}\"")
+					set (_flags "/FI\"${_prefixFileNative}\"")
 				endif()
 			endif()
 		endif()
