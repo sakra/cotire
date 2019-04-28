@@ -2396,6 +2396,9 @@ function (cotire_setup_pch_file_compilation _language _target _targetScript _pre
 				"${_language}" "${CMAKE_${_language}_COMPILER_ID}" "${CMAKE_${_language}_COMPILER_VERSION}"
 				"${_prefixFile}" "${_pchFile}" "${_hostFile}" _flags)
 			set_property (SOURCE ${_hostFile} APPEND_STRING PROPERTY COMPILE_FLAGS " ${_flags} ")
+			if (COTIRE_DEBUG)
+				message (STATUS "set_property: SOURCE ${_hostFile} APPEND_STRING COMPILE_FLAGS ${_flags}")
+			endif()
 			set_property (SOURCE ${_hostFile} APPEND PROPERTY OBJECT_OUTPUTS "${_pchFile}")
 			# make object file generated from host file depend on prefix header
 			set_property (SOURCE ${_hostFile} APPEND PROPERTY OBJECT_DEPENDS "${_prefixFile}")
@@ -2447,6 +2450,9 @@ function (cotire_setup_pch_file_inclusion _language _target _wholeTarget _prefix
 				"${_language}" "${CMAKE_${_language}_COMPILER_ID}" "${CMAKE_${_language}_COMPILER_VERSION}"
 				"${_prefixFile}" "${_pchFile}" _flags)
 			set_property (SOURCE ${_sourceFiles} APPEND_STRING PROPERTY COMPILE_FLAGS " ${_flags} ")
+			if (COTIRE_DEBUG)
+				message (STATUS "set_property: SOURCE ${_sourceFiles} APPEND_STRING COMPILE_FLAGS ${_flags}")
+			endif()
 			# make object files generated from source files depend on precompiled header
 			set_property (SOURCE ${_sourceFiles} APPEND PROPERTY OBJECT_DEPENDS "${_pchFile}")
 		endif()
@@ -2460,6 +2466,9 @@ function (cotire_setup_pch_file_inclusion _language _target _wholeTarget _prefix
 				"${_language}" "${CMAKE_${_language}_COMPILER_ID}" "${CMAKE_${_language}_COMPILER_VERSION}"
 				"${_prefixFile}" "${_pchFile}" _flags)
 			set_property (SOURCE ${_sourceFiles} APPEND_STRING PROPERTY COMPILE_FLAGS " ${_flags} ")
+			if (COTIRE_DEBUG)
+				message (STATUS "set_property: SOURCE ${_sourceFiles} APPEND_STRING COMPILE_FLAGS ${_flags}")
+			endif()
 			# mark sources as cotired to prevent them from being used in another cotired target
 			set_source_files_properties(${_sourceFiles} PROPERTIES COTIRE_TARGET "${_target}")
 		endif()
@@ -2477,6 +2486,9 @@ function (cotire_setup_prefix_file_inclusion _language _target _prefixFile)
 		"${_language}" "${CMAKE_${_language}_COMPILER_ID}" "${CMAKE_${_language}_COMPILER_VERSION}"
 		"${_prefixFile}" "${_pchFile}" _flags)
 	set_property (SOURCE ${_sourceFiles} APPEND_STRING PROPERTY COMPILE_FLAGS " ${_flags} ")
+	if (COTIRE_DEBUG)
+		message (STATUS "set_property: SOURCE ${_sourceFiles} APPEND_STRING COMPILE_FLAGS ${_flags}")
+	endif()
 	# mark sources as cotired to prevent them from being used in another cotired target
 	set_source_files_properties(${_sourceFiles} PROPERTIES COTIRE_TARGET "${_target}")
 	# make object files generated from source files depend on prefix header
@@ -2593,6 +2605,9 @@ function (cotire_setup_target_pch_usage _languages _target _wholeTarget)
 						"${_language}" "${CMAKE_${_language}_COMPILER_ID}" "${CMAKE_${_language}_COMPILER_VERSION}"
 						"${_prefixFile}" "${_pchFile}" _options)
 					set_property(TARGET ${_target} APPEND PROPERTY ${_options})
+					if (COTIRE_DEBUG)
+						message (STATUS "set_property: TARGET ${_target} APPEND PROPERTY ${_options}")
+					endif()
 				endif()
 			endif()
 		endif()
