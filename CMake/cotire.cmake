@@ -2051,8 +2051,10 @@ function (cotire_check_precompiled_header_support _language _target _msgVar)
 			else()
 				set (_ccacheExe "${_launcher}")
 			endif()
+			# ccache 3.7.0 replaced --print-config with --show-config
+			# use -p instead, which seems to work for all version for now, sigh
 			execute_process(
-				COMMAND "${_ccacheExe}" "--print-config"
+				COMMAND "${_ccacheExe}" "-p"
 				WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
 				RESULT_VARIABLE _result
 				OUTPUT_VARIABLE _ccacheConfig OUTPUT_STRIP_TRAILING_WHITESPACE
