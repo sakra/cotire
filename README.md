@@ -5,6 +5,10 @@ Cotire (compile time reducer) is a CMake module that speeds up the build process
 build systems by fully automating techniques as [precompiled header][pch] usage and
 [single compilation unit][scu] builds for C and C++.
 
+The functionality provided by cotire has been superseded by features added to [CMake 3.16][cmkr].
+Support for [pre-compiling][cpch] and [unity builds][cscu] is now built into CMake. Thus, there
+will not be any further updates or support for this project.
+
 features
 --------
 
@@ -135,3 +139,6 @@ known issues
 [intel]:https://software.intel.com/en-us/c-compilers
 [XGE]:https://www.incredibuild.com/
 [shrp]:https://unriskinsight.blogspot.co.at/2014/09/sharpen-your-tools.html
+[cmkr]:https://cmake.org/cmake/help/latest/release/3.16.html
+[cpch]:https://cmake.org/cmake/help/latest/command/target_precompile_headers.html
+[cscu]:https://cmake.org/cmake/help/v3.16/prop_tgt/UNITY_BUILD.html
