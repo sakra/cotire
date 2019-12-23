@@ -1,3 +1,9 @@
+## 1.8.1 (2019-12-23)
+
+* harden check for embedded parent directory references.
+* use native paths for Clang under Windows.
+* work around ccache 3.7 command line interface change.  
+
 ## 1.8.0 (2018-03-18)
 
 * support for clang-cl.exe under Windows.
