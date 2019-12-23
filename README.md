@@ -43,7 +43,7 @@ installation
 ------------
 
 Copy the file `CMake/cotire.cmake` to the module directory of your CMake project. In the
-top-level `CMakeList.txt` file, add the module directory to the CMake module search path:
+top-level `CMakeLists.txt` file, add the module directory to the CMake module search path:
 
     set (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/CMake")
 
@@ -51,7 +51,7 @@ usage
 -----
 
 To use cotire in your CMake project, add the following include directive to the beginning of the
-top-level `CMakeList.txt`:
+top-level `CMakeLists.txt`:
 
     include(cotire)
 
