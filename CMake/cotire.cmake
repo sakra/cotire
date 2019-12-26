@@ -3695,7 +3695,7 @@ if (CMAKE_SCRIPT_MODE_FILE)
 			COMPILER_VERSION "${CMAKE_${COTIRE_TARGET_LANGUAGE}_COMPILER_VERSION}"
 			LANGUAGE "${COTIRE_TARGET_LANGUAGE}"
 			IGNORE_PATH "${COTIRE_TARGET_IGNORE_PATH};${COTIRE_ADDITIONAL_PREFIX_HEADER_IGNORE_PATH}"
-			INCLUDE_PATH ${COTIRE_TARGET_INCLUDE_PATH}
+			INCLUDE_PATH "${COTIRE_TARGET_INCLUDE_PATH};${COTIRE_ADDITIONAL_PREFIX_HEADER_INCLUDE_PATH}"
 			IGNORE_EXTENSIONS "${CMAKE_${COTIRE_TARGET_LANGUAGE}_SOURCE_FILE_EXTENSIONS};${COTIRE_ADDITIONAL_PREFIX_HEADER_IGNORE_EXTENSIONS}"
 			INCLUDE_PRIORITY_PATH ${COTIRE_TARGET_INCLUDE_PRIORITY_PATH}
 			INCLUDE_DIRECTORIES ${_includeDirs}
@@ -3796,6 +3796,9 @@ else()
 	set (COTIRE_ADDITIONAL_PREFIX_HEADER_IGNORE_PATH "" CACHE STRING
 		"Ignore headers from these directories when generating the prefix header.")
 
+	set (COTIRE_ADDITIONAL_PREFIX_HEADER_INCLUDE_PATH "" CACHE STRING
+		"Include headers from these directories when generating the prefix header.")
+
 	set (COTIRE_UNITY_SOURCE_EXCLUDE_EXTENSIONS "m;mm" CACHE STRING
 		"Ignore sources with the listed file extensions from the generated unity source.")
 
@@ -3869,6 +3872,15 @@ else()
 		FULL_DOCS
 			"The variable can be set to a semicolon separated list of include directories."
 			"If a header file is found in one of these directories or sub-directories, it will be excluded from the generated prefix header."
+			"If not defined, defaults to empty list."
+	)
+
+	define_property(
+		CACHED_VARIABLE PROPERTY "COTIRE_ADDITIONAL_PREFIX_HEADER_INCLUDE_PATH"
+		BRIEF_DOCS "Include headers from these directories when generating the prefix header."
+		FULL_DOCS
+			"The variable can be set to a semicolon separated list of include directories."
+			"If a header file is found in one of these directories or sub-directories, it will be included in the generated prefix header."
 			"If not defined, defaults to empty list."
 	)
 
